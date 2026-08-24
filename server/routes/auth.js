@@ -102,7 +102,34 @@ router.put('/me', authenticateToken, async (req, res) => {
   const db = getDb();
   const { nome, telefone, wallpaper_url, wallpaper_position } = req.body;
   try {
-    await db.execute('UPDATE usuarios SET nome = COALESCE(?, nome), telefone = COALESCE(?, telefone), wallpaper_url = COALESCE(?, wallpaper_url), wallpaper_position = COALESCE(?, wallpaper_position) WHERE id = ?', [nome || null, telefone || null, wallpaper_url !== undefined ? wallpaper_url : null, wallpaper_position !== undefined ? wallpaper_position : null, req.user.id]);
+    const sets = [];
+    const params = [];
+
+    if (nome !== undefined) {
+      sets.push('nome = ?');
+      params.push(nome);
+    }
+    if (telefone !== undefined) {
+      sets.push('telefone = ?');
+      params.push(telefone);
+    }
+    if (wallpaper_url !== undefined) {
+      sets.push('wallpaper_url = ?');
+      params.push(wallpaper_url);
+    }
+    if (wallpaper_position !== undefined) {
+      sets.push('wallpaper_position = ?');
+      params.push(wallpaper_position);
+    }
+
+    if (sets.length === 0) {
+      return res.json({ success: true, data: 'Nenhuma alteração' });
+    }
+
+    const query = `UPDATE usuarios SET ${sets.join(', ')} WHERE id = ?`;
+    params.push(req.user.id);
+
+    await db.execute(query, params);
     res.json({ success: true, data: 'Atualizado com sucesso' });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Erro ao atualizar' });
