@@ -13,7 +13,7 @@ export const getNextCorretor = async (origem) => {
   // Get active, available, not paused corretors
   const corretores = await db.query(`
     SELECT id FROM usuarios 
-    WHERE role = 'corretor' AND ativo = 1 AND disponivel_rodizio = 1 AND pausado_rodizio = 0
+    WHERE ativo = 1 AND disponivel_rodizio = 1 AND pausado_rodizio = 0
     ORDER BY id
   `);
 

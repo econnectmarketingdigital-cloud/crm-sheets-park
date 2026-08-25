@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { getDb } from '../database.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 
@@ -20,7 +20,7 @@ router.put('/config', authenticateToken, requireRole('gestor'), async (req, res)
 
 router.get('/corretores', authenticateToken, async (req, res) => {
   const db = getDb();
-  const corretores = await db.query("SELECT id, nome, disponivel_rodizio, pausado_rodizio, ativo FROM usuarios WHERE role = 'corretor'");
+  const corretores = await db.query("SELECT id, nome, role, disponivel_rodizio, pausado_rodizio, ativo FROM usuarios");
   res.json({ success: true, data: corretores });
 });
 

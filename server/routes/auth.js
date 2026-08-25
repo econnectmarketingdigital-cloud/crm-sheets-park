@@ -87,10 +87,11 @@ router.post('/register', authenticateToken, requireRole('gestor'), async (req, r
     await db.execute(`
       INSERT INTO usuarios (id, nome, email, telefone, senha_hash, role, disponivel_rodizio)
       VALUES (?, ?, ?, ?, ?, ?, 0)
-    `, [id, nome, email, telefone, hash, userRole]);
+    `, [id, nome, email, telefone || null, hash, userRole]);
     res.json({ success: true, data: { id, nome, email, role: userRole } });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Erro ao criar usuário' });
+    console.error('Register error:', error);
+    res.status(500).json({ success: false, error: 'Erro ao criar usuário: ' + error.message });
   }
 });
 
