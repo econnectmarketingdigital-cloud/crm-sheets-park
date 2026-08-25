@@ -110,17 +110,25 @@ export async function notifyCorretorNewLead(leadId) {
     }
 
     // 4. Send real email using nodemailer
+    console.log(`[Notification] Connecting to SMTP ${smtpHost}:${smtpPort}...`);
     const transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
-      secure: smtpPort === 465, // true for 465, false for other ports
+      secure: smtpPort === 465, // true for 465, false for 587
       auth: {
         user: smtpUser,
         pass: smtpPass
       },
-      family: 4 // Force IPv4 to prevent ENETUNREACH connection issues on cloud environments (Render)
+      family: 4, // Force IPv4
+      connectionTimeout: 8000, // 8 seconds timeout
+      greetingTimeout: 8000,
+      socketTimeout: 8000,
+      tls: {
+        rejectUnauthorized: false // Avoid SSL certificate issues on some environments
+      }
     });
 
+    console.log(`[Notification] Sending email to ${corretor_email}...`);
     await transporter.sendMail({
       from: smtpFrom,
       to: corretor_email,
@@ -130,6 +138,7 @@ export async function notifyCorretorNewLead(leadId) {
 
     console.log(`[Notification] Email sent successfully to ${corretor_email}`);
   } catch (err) {
-    console.error('[Notification] Failed to send email:', err);
+    console.error('[Notification] Failed to send email:', err.message);
+    if (err.stack) console.error(err.stack);
   }
 }
