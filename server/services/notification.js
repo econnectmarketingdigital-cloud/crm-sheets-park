@@ -117,7 +117,8 @@ export async function notifyCorretorNewLead(leadId) {
       auth: {
         user: smtpUser,
         pass: smtpPass
-      }
+      },
+      family: 4 // Force IPv4 to prevent ENETUNREACH connection issues on cloud environments (Render)
     });
 
     await transporter.sendMail({
