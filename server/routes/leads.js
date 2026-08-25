@@ -124,6 +124,34 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+router.put('/:id/corretor', authenticateToken, async (req, res) => {
+  const db = getDb();
+  try {
+    const { corretor_id } = req.body;
+    
+    const lead = await db.queryOne('SELECT corretor_id FROM leads WHERE id = ?', [req.params.id]);
+    if (!lead) return res.status(404).json({ success: false, error: 'Lead não encontrado' });
+    if (req.user.role === 'corretor' && lead.corretor_id !== req.user.id) return res.status(403).json({ success: false, error: 'Acesso negado' });
+
+    let nomeNovoCorretor = 'Nenhum Corretor';
+    if (corretor_id) {
+      const novoCorretor = await db.queryOne('SELECT nome FROM usuarios WHERE id = ?', [corretor_id]);
+      if (novoCorretor) nomeNovoCorretor = novoCorretor.nome;
+    }
+
+    await db.execute('UPDATE leads SET corretor_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [corretor_id || null, req.params.id]);
+    
+    await db.execute(`
+      INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) 
+      VALUES (?, ?, ?, 'sistema', ?)
+    `, [uuidv4(), req.params.id, req.user.id, `Lead transferido manualmente para ${nomeNovoCorretor} por ${req.user.nome}.`]);
+
+    res.json({ success: true, data: 'Corretor atualizado com sucesso' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.put('/:id', authenticateToken, async (req, res) => {
   const db = getDb();
   try {

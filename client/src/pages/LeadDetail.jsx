@@ -40,6 +40,9 @@ export default function LeadDetail() {
   const [showLostModal, setShowLostModal] = useState(false);
   const [showVendaModal, setShowVendaModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [corretores, setCorretores] = useState([]);
+  const [selectedCorretor, setSelectedCorretor] = useState('');
   const [lostReason, setLostReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -51,12 +54,14 @@ export default function LeadDetail() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [leadData, histData] = await Promise.all([
+      const [leadData, histData, usersData] = await Promise.all([
         api.leads.getLead(id),
-        api.leads.getHistorico(id)
+        api.leads.getHistorico(id),
+        api.usuarios.getUsuarios()
       ]);
       setLead(leadData);
       setHistorico(histData || []);
+      setCorretores((usersData || []).filter(u => u.ativo === 1));
     } catch (err) {
       addToast('Erro ao carregar dados do lead', 'error');
       navigate('/leads');
@@ -132,6 +137,25 @@ export default function LeadDetail() {
     }
   };
 
+  const handleTransferLead = async () => {
+    if (!selectedCorretor) {
+      addToast('Selecione um corretor para transferir', 'error');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      await api.leads.transferirLead(id, selectedCorretor);
+      addToast('Lead transferido com sucesso!', 'success');
+      setShowTransferModal(false);
+      setSelectedCorretor('');
+      fetchData();
+    } catch (err) {
+      addToast(err.message || 'Erro ao transferir lead', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleDeleteLead = async () => {
     try {
       setActionLoading(true);
@@ -196,6 +220,14 @@ export default function LeadDetail() {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button 
+            onClick={() => setShowTransferModal(true)}
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Transferir Lead"
+          >
+            Transferir
+          </button>
           <button 
             onClick={() => setShowDeleteModal(true)}
             className="btn btn-secondary"
@@ -365,6 +397,37 @@ export default function LeadDetail() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button onClick={() => setShowLostModal(false)} className="btn btn-secondary">Cancelar</button>
               <button onClick={handleMarkLost} disabled={actionLoading} className="btn" style={{ background: '#F43F5E', color: '#fff' }}>Confirmar Perda</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Modal */}
+      {showTransferModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(6px)' }}>
+          <div className="card" style={{ padding: '25px', width: '90%', maxWidth: '440px' }}>
+            <h3 className="font-heading" style={{ margin: '0 0 10px 0', color: '#00F5A0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Transferir Lead
+            </h3>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', marginBottom: '1rem', lineHeight: '1.5' }}>
+              Selecione o corretor para quem você deseja transferir o lead <strong>{lead.nome}</strong>:
+            </p>
+            <select
+              value={selectedCorretor}
+              onChange={(e) => setSelectedCorretor(e.target.value)}
+              className="input"
+              style={{ width: '100%', marginBottom: '1.5rem', backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}
+            >
+              <option value="">-- Selecione o Corretor --</option>
+              {corretores.map(c => (
+                <option key={c.id} value={c.id}>{c.nome}</option>
+              ))}
+            </select>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => setShowTransferModal(false)} className="btn btn-secondary">Cancelar</button>
+              <button onClick={handleTransferLead} disabled={actionLoading || !selectedCorretor} className="btn btn-primary" style={{ fontWeight: 'bold' }}>
+                Transferir Lead
+              </button>
             </div>
           </div>
         </div>
