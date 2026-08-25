@@ -21,32 +21,52 @@ export const startScheduler = () => {
       const slaConfig = await db.queryOne("SELECT valor FROM configuracoes WHERE chave = 'sla_redistribuicao_minutos'");
       const slaMinutos = slaConfig ? parseInt(slaConfig.valor, 10) : 30;
 
-      const overdueLeads = await db.query(`
-        SELECT id, origem, corretor_id FROM leads 
-        WHERE etapa = 'novo' 
-          AND origem != 'manual'
-          AND created_at + make_interval(mins => $1::integer) <= CURRENT_TIMESTAMP
-      `, [slaMinutos]);
+      // Buscar todos os leads "novos" para calcular o SLA em horário comercial
+      const leadsNovos = await db.query(`
+        SELECT id, origem, corretor_id, created_at FROM leads 
+        WHERE etapa = 'novo' AND origem != 'manual'
+      `);
 
-      for (const lead of overdueLeads) {
-        await db.execute(`
-          INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) 
-          VALUES (?, ?, ?, 'sistema', ?)
-        `, [uuidv4(), lead.id, lead.corretor_id, `Lead retirado por falta de atendimento no prazo de ${slaMinutos} min.`]);
+      const now = new Date();
 
-        const newCorretorId = await getNextCorretor(lead.origem);
-        
-        if (newCorretorId && newCorretorId !== lead.corretor_id) {
-          await db.execute(`
-            UPDATE leads 
-            SET corretor_id = ?, updated_at = CURRENT_TIMESTAMP, created_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-          `, [newCorretorId, lead.id]);
+      for (const lead of leadsNovos) {
+        // Função para calcular minutos úteis (das 08:00 às 20:00 BRT)
+        let businessMinutesElapsed = 0;
+        let current = new Date(lead.created_at);
+        let iterations = 0;
 
+        while (current < now && iterations < 10000) { // 10000 min limite de segurança
+          // Hora em Brasília (BRT = UTC-3)
+          const brtHour = (current.getUTCHours() - 3 + 24) % 24;
+          
+          if (brtHour >= 8 && brtHour < 20) {
+            businessMinutesElapsed++;
+          }
+          current = new Date(current.getTime() + 60000); // avança 1 minuto
+          iterations++;
+        }
+
+        // Se o lead estourou o tempo de SLA em horário comercial, redistribui
+        if (businessMinutesElapsed >= slaMinutos) {
           await db.execute(`
             INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) 
-            VALUES (?, ?, ?, 'sistema', 'Lead redistribuído automaticamente para novo corretor.')
-          `, [uuidv4(), lead.id, newCorretorId]);
+            VALUES (?, ?, ?, 'sistema', ?)
+          `, [uuidv4(), lead.id, lead.corretor_id, `Lead retirado por falta de atendimento no prazo útil de ${slaMinutos} min.`]);
+
+          const newCorretorId = await getNextCorretor(lead.origem);
+          
+          if (newCorretorId && newCorretorId !== lead.corretor_id) {
+            await db.execute(`
+              UPDATE leads 
+              SET corretor_id = ?, updated_at = CURRENT_TIMESTAMP, created_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `, [newCorretorId, lead.id]);
+
+            await db.execute(`
+              INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) 
+              VALUES (?, ?, ?, 'sistema', 'Lead redistribuído automaticamente para novo corretor.')
+            `, [uuidv4(), lead.id, newCorretorId]);
+          }
         }
       }
     } catch (error) {
