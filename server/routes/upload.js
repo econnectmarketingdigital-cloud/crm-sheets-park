@@ -13,6 +13,16 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// Build the full public base URL for uploaded files
+function getBaseUrl() {
+  // In production (Render), use the public URL
+  if (process.env.RENDER_EXTERNAL_URL) {
+    return process.env.RENDER_EXTERNAL_URL;
+  }
+  // Fallback: manual env var or localhost
+  return process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+}
+
 router.post('/', authenticateToken, async (req, res) => {
   const db = getDb();
   try {
@@ -39,23 +49,26 @@ router.post('/', authenticateToken, async (req, res) => {
         .resize(400, 400, { fit: 'cover' })
         .webp({ quality: 85 })
         .toFile(outputPath);
-
-      const publicUrl = `/uploads/${filename}`;
-      await db.execute('UPDATE usuarios SET avatar_url = ? WHERE id = ?', [publicUrl, req.user.id]);
-
-      return res.json({ success: true, url: publicUrl, data: { url: publicUrl } });
     } else {
       // Process wallpaper (max 1920 width)
       await sharp(buffer)
         .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
         .webp({ quality: 85 })
         .toFile(outputPath);
-
-      const publicUrl = `/uploads/${filename}`;
-      await db.execute('UPDATE usuarios SET wallpaper_url = ? WHERE id = ?', [publicUrl, req.user.id]);
-
-      return res.json({ success: true, url: publicUrl, data: { url: publicUrl } });
     }
+
+    // Build FULL public URL (so it works from Vercel frontend too)
+    const baseUrl = getBaseUrl();
+    const publicUrl = `${baseUrl}/uploads/${filename}`;
+    console.log(`[Upload] File saved: ${publicUrl}`);
+
+    if (type === 'avatar') {
+      await db.execute('UPDATE usuarios SET avatar_url = ? WHERE id = ?', [publicUrl, req.user.id]);
+    } else {
+      await db.execute('UPDATE usuarios SET wallpaper_url = ? WHERE id = ?', [publicUrl, req.user.id]);
+    }
+
+    return res.json({ success: true, url: publicUrl, data: { url: publicUrl } });
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ success: false, error: 'Erro ao processar imagem: ' + error.message });
