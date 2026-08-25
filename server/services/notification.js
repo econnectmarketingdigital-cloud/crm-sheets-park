@@ -1,9 +1,9 @@
-import nodemailer from 'nodemailer';
-import dns from 'dns';
 import { getDb } from '../database.js';
 
 /**
  * Sends an email notification to the assigned broker for a new lead.
+ * Uses Resend HTTP API (port 443) instead of SMTP (ports 465/587)
+ * because Render blocks outbound SMTP connections on free tier.
  */
 export async function notifyCorretorNewLead(leadId) {
   const db = getDb();
@@ -36,13 +36,22 @@ export async function notifyCorretorNewLead(leadId) {
 
     console.log(`[Notification] Preparing email for ${corretor_nome} (${corretor_email}) regarding lead: ${nome}`);
 
-    // 2. Read SMTP environment variables
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const smtpFrom = process.env.SMTP_FROM || 'Sheets Park CRM <noreply@sheetspark.com.br>';
+    // 2. Check for Resend API key
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const emailFrom = process.env.EMAIL_FROM || 'Sheets Park CRM <onboarding@resend.dev>';
 
+    if (!resendApiKey) {
+      console.log('----------------------------------------------------');
+      console.log('📢 [E-mail Simulado - RESEND_API_KEY Não Configurado]');
+      console.log(`De: ${emailFrom}`);
+      console.log(`Para: ${corretor_email}`);
+      console.log(`Assunto: 🔥 Novo Lead no CRM: ${nome}`);
+      console.log(`Dados: Tel=${telefone}, Interesse=${empreendimento_nome}`);
+      console.log('----------------------------------------------------');
+      return;
+    }
+
+    // 3. Build HTML email body
     const htmlBody = `
       <!DOCTYPE html>
       <html>
@@ -98,48 +107,30 @@ export async function notifyCorretorNewLead(leadId) {
       </html>
     `;
 
-    // 3. Fallback to console log if SMTP is not configured
-    if (!smtpHost || !smtpUser || !smtpPass) {
-      console.log('----------------------------------------------------');
-      console.log('📢 [E-mail Simulado - SMTP Não Configurado]');
-      console.log(`De: ${smtpFrom}`);
-      console.log(`Para: ${corretor_email}`);
-      console.log(`Assunto: 🔥 Novo Lead no CRM: ${nome}`);
-      console.log(`Dados: Tel=${telefone}, Interesse=${empreendimento_nome}`);
-      console.log('----------------------------------------------------');
-      return;
+    // 4. Send email via Resend HTTP API (uses HTTPS port 443 — never blocked by cloud providers)
+    console.log(`[Notification] Sending email via Resend API to ${corretor_email}...`);
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: emailFrom,
+        to: [corretor_email],
+        subject: `🔥 Atenção: Novo Lead no CRM - ${nome}`,
+        html: htmlBody
+      })
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      console.log(`[Notification] ✅ Email sent successfully to ${corretor_email} (Resend ID: ${result.id})`);
+    } else {
+      console.error(`[Notification] ❌ Resend API error (${response.status}):`, JSON.stringify(result));
     }
-
-    // 4. Manually resolve SMTP host to IPv4 to bypass Render's broken IPv6 routing
-    const { address: ipv4Address } = await dns.promises.lookup(smtpHost, { family: 4 });
-    console.log(`[Notification] Resolved ${smtpHost} to IPv4: ${ipv4Address}`);
-
-    const transporter = nodemailer.createTransport({
-      host: ipv4Address,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass
-      },
-      tls: {
-        servername: smtpHost, // Use original hostname for TLS certificate verification
-        rejectUnauthorized: false
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000
-    });
-
-    console.log(`[Notification] Sending email to ${corretor_email} via ${ipv4Address}:${smtpPort}...`);
-    await transporter.sendMail({
-      from: smtpFrom,
-      to: corretor_email,
-      subject: `🔥 Atenção: Novo Lead no CRM - ${nome}`,
-      html: htmlBody
-    });
-
-    console.log(`[Notification] ✅ Email sent successfully to ${corretor_email}`);
   } catch (err) {
     console.error('[Notification] Failed to send email:', err.message);
   }
