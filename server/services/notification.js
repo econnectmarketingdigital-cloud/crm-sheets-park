@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 import { getDb } from '../database.js';
 
 /**
@@ -118,6 +119,10 @@ export async function notifyCorretorNewLead(leadId) {
       auth: {
         user: smtpUser,
         pass: smtpPass
+      },
+      // Force DNS lookup to use IPv4 only to bypass Render's broken IPv6 network routes
+      lookup: (hostname, options, callback) => {
+        dns.lookup(hostname, { family: 4 }, callback);
       },
       family: 4, // Force IPv4
       connectionTimeout: 8000, // 8 seconds timeout
