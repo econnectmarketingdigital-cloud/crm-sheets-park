@@ -52,13 +52,13 @@ const Dashboard = () => {
       {/* Background Dots Texture */}
       <div style={{
         position: 'absolute', top: '-2rem', left: '-2rem', right: '-2rem', bottom: '-2rem', zIndex: -1, pointerEvents: 'none',
-        backgroundImage: 'radial-gradient(rgba(212,149,106,0.15) 1px, transparent 1px)', backgroundSize: '30px 30px', opacity: 0.5
+        backgroundImage: 'radial-gradient(rgba(0,245,160,0.1) 1px, transparent 1px)', backgroundSize: '30px 30px', opacity: 0.6
       }} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 className="font-heading" style={{ fontSize: '2.5rem', margin: 0, fontWeight: 700, letterSpacing: '-0.5px' }}>
-            Olá, <span style={{ color: 'transparent', backgroundImage: 'linear-gradient(90deg, #D4956A, #B5451B)', WebkitBackgroundClip: 'text' }}>{user?.nome?.split(' ')[0] || 'Corretor'}</span>
+          <h1 className="font-heading" style={{ fontSize: '2.5rem', margin: 0, fontWeight: 800, letterSpacing: '-0.5px' }}>
+            Olá, <span style={{ color: 'transparent', backgroundImage: 'linear-gradient(90deg, #00F5A0, #0EA5E9)', WebkitBackgroundClip: 'text' }}>{user?.nome?.split(' ')[0] || 'Corretor'}</span>
           </h1>
           <p style={{ color: 'var(--color-text-secondary)', margin: '0.5rem 0 0 0', fontSize: '1rem' }}>Aqui está o resumo da sua performance.</p>
         </div>
@@ -66,20 +66,20 @@ const Dashboard = () => {
       
       <style>{`
         .glass-card-override {
-          background: rgba(42, 35, 32, 0.4);
+          background: rgba(18, 20, 24, 0.7);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
-          border: 1px solid rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.08);
           border-radius: 20px;
           padding: 1.5rem;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
           transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
           position: relative;
           overflow: hidden;
         }
         .glass-card-override:hover {
           transform: translateY(-5px);
-          box-shadow: 0 15px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(212,149,106,0.2);
+          box-shadow: 0 15px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,245,160,0.2);
         }
         .glass-card-override::before {
           content: '';
@@ -101,16 +101,16 @@ const Dashboard = () => {
         }
         .progress-fill {
           height: 100%;
-          background: linear-gradient(90deg, #D4956A, #B5451B);
+          background: linear-gradient(90deg, #00F5A0, #0EA5E9);
           border-radius: 99px;
           position: relative;
-          box-shadow: 0 0 10px rgba(212,149,106,0.5);
+          box-shadow: 0 0 12px rgba(0,245,160,0.5);
           transition: width 1.5s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
         .progress-fill::after {
           content: '';
           position: absolute; top:0; left:0; right:0; bottom:0;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
           animation: shimmer-progress 3s infinite linear;
         }
         @keyframes shimmer-progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
@@ -121,13 +121,13 @@ const Dashboard = () => {
         {/* VGV Meta */}
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ backgroundColor: 'rgba(212,149,106,0.15)', color: '#D4956A', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(212,149,106,0.3)' }}>
+            <div style={{ backgroundColor: 'rgba(0,245,160,0.12)', color: '#00F5A0', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(0,245,160,0.25)' }}>
               <FiTrendingUp size={22} />
             </div>
             <h3 className="font-heading" style={{ color: 'var(--color-text)', margin: 0, fontSize: '1.2rem' }}>Avanço da Meta</h3>
           </div>
           
-          <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--color-text)', lineHeight: 1, marginBottom: '1.5rem', letterSpacing: '-1px' }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1, marginBottom: '1.5rem', letterSpacing: '-1px' }}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vgvTotal)}
           </div>
 
@@ -142,10 +142,10 @@ const Dashboard = () => {
 
         {/* Ranking */}
         <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/ranking')}>
-          <div style={{ position: 'absolute', top: 0, right: 0, width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(241,196,15,0.15) 0%, transparent 70%)', filter: 'blur(20px)', zIndex: -1 }}></div>
+          <div style={{ position: 'absolute', top: 0, right: 0, width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(0,245,160,0.12) 0%, transparent 70%)', filter: 'blur(20px)', zIndex: -1 }}></div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ backgroundColor: 'rgba(241,196,15,0.15)', color: '#f1c40f', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(241,196,15,0.3)' }}>
+              <div style={{ backgroundColor: 'rgba(0,245,160,0.12)', color: '#00F5A0', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(0,245,160,0.25)' }}>
                 <FiAward size={22} />
               </div>
               <h3 className="font-heading" style={{ color: 'var(--color-text)', margin: 0, fontSize: '1.2rem' }}>Ranking Global</h3>
@@ -154,7 +154,7 @@ const Dashboard = () => {
           </div>
           
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', height: '80px' }}>
-            <span style={{ fontSize: '4rem', fontWeight: 800, color: 'transparent', backgroundImage: 'linear-gradient(180deg, #f1c40f, #f39c12)', WebkitBackgroundClip: 'text', lineHeight: 1, filter: 'drop-shadow(0 4px 10px rgba(241,196,15,0.3))' }}>
+            <span style={{ fontSize: '4rem', fontWeight: 800, color: 'transparent', backgroundImage: 'linear-gradient(180deg, #00F5A0, #0EA5E9)', WebkitBackgroundClip: 'text', lineHeight: 1, filter: 'drop-shadow(0 4px 10px rgba(0,245,160,0.3))' }}>
               {data?.rank || '-'}º
             </span>
             <span style={{ color: 'var(--color-text-secondary)', fontSize: '1.1rem', fontWeight: 500 }}>lugar</span>
@@ -164,7 +164,7 @@ const Dashboard = () => {
         {/* Avisos */}
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ backgroundColor: 'rgba(231,76,60,0.15)', color: '#e74c3c', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(231,76,60,0.3)' }}>
+            <div style={{ backgroundColor: 'rgba(244,63,94,0.15)', color: '#F43F5E', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(244,63,94,0.3)' }}>
               <FiAlertCircle size={22} />
             </div>
             <h3 className="font-heading" style={{ color: 'var(--color-text)', margin: 0, fontSize: '1.2rem' }}>Atenção</h3>
@@ -174,7 +174,7 @@ const Dashboard = () => {
               data.leads.map((item, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
                   <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>{etapaLabels[item.etapa] || item.etapa}</span>
-                  <span style={{ background: 'rgba(212,149,106,0.2)', color: '#D4956A', padding: '2px 8px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600, border: '1px solid rgba(212,149,106,0.3)' }}>
+                  <span style={{ background: 'rgba(0,245,160,0.12)', color: '#00F5A0', padding: '2px 8px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600, border: '1px solid rgba(0,245,160,0.25)' }}>
                     {item.count} leads
                   </span>
                 </div>
@@ -191,7 +191,7 @@ const Dashboard = () => {
       {/* Recent Leads */}
       <div className="card" style={{ padding: '0' }}>
         <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ backgroundColor: 'rgba(52,152,219,0.15)', color: '#3498db', padding: '0.5rem', borderRadius: '8px', border: '1px solid rgba(52,152,219,0.3)' }}>
+          <div style={{ backgroundColor: 'rgba(56,189,248,0.15)', color: '#38BDF8', padding: '0.5rem', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.3)' }}>
             <FiClock size={18} />
           </div>
           <h3 className="font-heading" style={{ margin: 0, fontSize: '1.1rem' }}>Movimentações Recentes</h3>
@@ -211,7 +211,7 @@ const Dashboard = () => {
                   <tr key={lead.id} onClick={() => navigate(`/leads/${lead.id}`)} style={{ cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.02)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
                     <td style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>{lead.nome}</td>
                     <td style={{ padding: '1rem 1.5rem' }}>
-                      <span style={{ display: 'inline-block', background: 'rgba(212,149,106,0.15)', color: '#D4956A', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid rgba(212,149,106,0.3)' }}>
+                      <span style={{ display: 'inline-block', background: 'rgba(0,245,160,0.12)', color: '#00F5A0', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid rgba(0,245,160,0.25)' }}>
                         {etapaLabels[lead.etapa] || lead.etapa}
                       </span>
                     </td>

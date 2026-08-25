@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
-import { FiPhone, FiMail, FiMessageCircle, FiEdit3, FiInfo, FiClock, FiCheck, FiXCircle, FiArrowRight } from 'react-icons/fi';
+import { FiPhone, FiMail, FiMessageCircle, FiEdit3, FiInfo, FiClock, FiCheck, FiXCircle, FiArrowRight, FiTrash2, FiArrowLeft } from 'react-icons/fi';
 import ModalFechamentoVenda from '../components/ModalFechamentoVenda';
 
 const ETAPAS = ['novo', 'contato_feito', 'visita_agendada', 'proposta', 'documentacao', 'fechado'];
@@ -39,6 +39,7 @@ export default function LeadDetail() {
   const [notaText, setNotaText] = useState('');
   const [showLostModal, setShowLostModal] = useState(false);
   const [showVendaModal, setShowVendaModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [lostReason, setLostReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -70,7 +71,7 @@ export default function LeadDetail() {
       setActionLoading(true);
       await api.leads.addNota(id, notaText);
       setNotaText('');
-      addToast('Nota adicionada', 'success');
+      addToast('Nota adicionada com sucesso', 'success');
       fetchData();
     } catch (err) {
       addToast('Erro ao adicionar nota', 'error');
@@ -98,7 +99,7 @@ export default function LeadDetail() {
       addToast('Etapa atualizada com sucesso', 'success');
       fetchData();
     } catch (err) {
-      addToast(err.message, 'error');
+      addToast(err.message || 'Erro ao atualizar etapa', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -119,81 +120,112 @@ export default function LeadDetail() {
     }
     try {
       setActionLoading(true);
-      const token = localStorage.getItem('@CRM_Token');
-      const response = await fetch(`/api/leads/${id}/etapa`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({ etapa: 'perdido', perdido_motivo: lostReason })
-      });
-      if (!response.ok) throw new Error('Erro na requisição');
-      
+      await api.leads.moveLeadEtapa(id, 'perdido', lostReason);
       setShowLostModal(false);
       setLostReason('');
       addToast('Lead marcado como perdido', 'success');
       fetchData();
     } catch (err) {
-      addToast('Erro ao marcar como perdido', 'error');
+      addToast(err.message || 'Erro ao marcar como perdido', 'error');
     } finally {
       setActionLoading(false);
     }
   };
 
-  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando...</div>;
+  const handleDeleteLead = async () => {
+    try {
+      setActionLoading(true);
+      await api.leads.deleteLead(id);
+      addToast('Lead excluído com sucesso!', 'success');
+      navigate('/kanban');
+    } catch (err) {
+      addToast(err.message || 'Erro ao excluir lead', 'error');
+    } finally {
+      setActionLoading(false);
+      setShowDeleteModal(false);
+    }
+  };
+
+  if (loading) return <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Carregando dados...</div>;
   if (!lead) return null;
 
   const getPhoneNumbers = (phone) => phone ? phone.replace(/\D/g, '') : '';
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '1050px', margin: '0 auto' }}>
       
+      {/* Back button and title */}
+      <button 
+        onClick={() => navigate(-1)} 
+        className="btn btn-secondary"
+        style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+      >
+        <FiArrowLeft /> Voltar
+      </button>
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '15px', marginBottom: '20px' }}>
         <div>
-          <h1 style={{ margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h1 className="font-heading" style={{ margin: '0 0 10px 0', fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '10px', color: '#FFFFFF' }}>
             {lead.nome}
-            <span style={{ fontSize: '0.5em', padding: '4px 8px', borderRadius: '12px', background: '#eee', color: '#333' }}>
+            <span className="badge" style={{ fontSize: '0.7rem', padding: '4px 10px', borderRadius: '12px', background: 'rgba(255,255,255,0.08)', color: 'var(--color-text-secondary)' }}>
               {lead.origem}
             </span>
-            <span style={{ fontSize: '0.5em', padding: '4px 8px', borderRadius: '12px', background: lead.etapa === 'perdido' ? '#e74c3c' : 'var(--color-primary, #007bff)', color: '#fff' }}>
+            <span className="badge" style={{ fontSize: '0.7rem', padding: '4px 10px', borderRadius: '12px', background: lead.etapa === 'perdido' ? 'rgba(244,63,94,0.2)' : 'rgba(0,245,160,0.15)', color: lead.etapa === 'perdido' ? '#F43F5E' : '#00F5A0', border: `1px solid ${lead.etapa === 'perdido' ? 'rgba(244,63,94,0.3)' : 'rgba(0,245,160,0.3)'}` }}>
               {getEtapaLabel(lead.etapa)}
             </span>
           </h1>
+          
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <a href={`https://wa.me/55${getPhoneNumbers(lead.telefone)}`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 12px', background: '#25D366', color: '#fff', textDecoration: 'none', borderRadius: '4px' }}>
-              <FiMessageCircle /> WhatsApp
-            </a>
-            <a href={`tel:${getPhoneNumbers(lead.telefone)}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 12px', background: '#3498db', color: '#fff', textDecoration: 'none', borderRadius: '4px' }}>
-              <FiPhone /> Ligar
-            </a>
+            {lead.telefone && (
+              <a href={`https://wa.me/55${getPhoneNumbers(lead.telefone)}`} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#25D366', color: '#fff', textDecoration: 'none', borderRadius: '8px' }}>
+                <FiMessageCircle /> WhatsApp ({lead.telefone})
+              </a>
+            )}
+            {lead.telefone && (
+              <a href={`tel:${getPhoneNumbers(lead.telefone)}`} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none', borderRadius: '8px' }}>
+                <FiPhone /> Ligar
+              </a>
+            )}
             {lead.email && (
-              <a href={`mailto:${lead.email}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 12px', background: '#95a5a6', color: '#fff', textDecoration: 'none', borderRadius: '4px' }}>
-                <FiMail /> Email
+              <a href={`mailto:${lead.email}`} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none', borderRadius: '8px' }}>
+                <FiMail /> {lead.email}
               </a>
             )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button 
+            onClick={() => setShowDeleteModal(true)}
+            className="btn btn-secondary"
+            style={{ color: '#F43F5E', border: '1px solid rgba(244,63,94,0.3)', display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Excluir Lead"
+          >
+            <FiTrash2 /> Excluir
+          </button>
+
           {lead.etapa !== 'perdido' && lead.etapa !== 'fechado' && (
             <>
               <button 
                 onClick={() => setShowLostModal(true)}
-                style={{ padding: '8px 12px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
+                className="btn btn-secondary"
+                style={{ color: '#F43F5E', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <FiXCircle /> Perdido
               </button>
               <button 
                 onClick={() => setShowVendaModal(true)}
-                style={{ padding: '8px 12px', background: 'var(--color-success)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold' }}
+                className="btn"
+                style={{ background: 'linear-gradient(135deg, #00F5A0, #00D68B)', color: '#061912', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 💰 Registrar Venda
               </button>
               <button 
-                onClick={handleNextEtapa} disabled={actionLoading}
-                style={{ padding: '8px 12px', background: 'var(--color-primary, #007bff)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold' }}
+                onClick={handleNextEtapa} 
+                disabled={actionLoading}
+                className="btn btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 Avançar Etapa <FiArrowRight />
               </button>
@@ -204,16 +236,16 @@ export default function LeadDetail() {
 
       {/* Progress */}
       {lead.etapa !== 'perdido' && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px', background: 'var(--color-surface, #fff)', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
+        <div className="card" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px', padding: '20px', overflowX: 'auto', gap: '10px' }}>
           {ETAPAS.map((etp, idx) => {
             const currentIdx = ETAPAS.indexOf(lead.etapa);
             const isCompleted = idx <= currentIdx;
             return (
-              <div key={etp} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: isCompleted ? 1 : 0.4, minWidth: '100px' }}>
-                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: isCompleted ? 'var(--color-primary, #007bff)' : '#ccc', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
-                  {isCompleted ? <FiCheck /> : idx + 1}
+              <div key={etp} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: isCompleted ? 1 : 0.35, minWidth: '100px', cursor: 'pointer' }} onClick={() => handleEtapaChange(etp)}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: isCompleted ? '#00F5A0' : 'rgba(255,255,255,0.1)', color: isCompleted ? '#061912' : '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', boxShadow: isCompleted ? '0 0 15px rgba(0,245,160,0.4)' : 'none' }}>
+                  {isCompleted ? <FiCheck size={18} /> : idx + 1}
                 </div>
-                <span style={{ fontSize: '0.85em', textAlign: 'center', fontWeight: isCompleted ? 'bold' : 'normal' }}>
+                <span style={{ fontSize: '0.85em', textAlign: 'center', fontWeight: isCompleted ? 700 : 400, color: isCompleted ? '#FFFFFF' : 'var(--color-text-secondary)' }}>
                   {getEtapaLabel(etp)}
                 </span>
               </div>
@@ -222,89 +254,137 @@ export default function LeadDetail() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+      {/* Content Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         
-        {/* Left Column */}
-        <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Info Card */}
-          <div style={{ background: 'var(--color-surface, #fff)', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ margin: '0 0 15px 0', borderBottom: '1px solid #eee', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FiInfo /> Informações
-            </h3>
-            <p style={{ margin: '8px 0' }}><strong>Telefone:</strong> {lead.telefone || '-'}</p>
-            <p style={{ margin: '8px 0' }}><strong>Email:</strong> {lead.email || '-'}</p>
-            <p style={{ margin: '8px 0' }}><strong>Empreendimento:</strong> {lead.empreendimento_nome || lead.empreendimento_interesse_id || '-'}</p>
-            <p style={{ margin: '8px 0' }}><strong>Corretor Responsável:</strong> {lead.corretor_nome || 'Nenhum'}</p>
-            {lead.faixa_renda && <p style={{ margin: '8px 0' }}><strong>Renda Informada:</strong> {lead.faixa_renda}</p>}
-            {lead.campanha && <p style={{ margin: '8px 0' }}><strong>Campanha:</strong> {lead.campanha}</p>}
-            <p style={{ margin: '8px 0' }}><strong>Observações Iniciais:</strong><br/>{lead.observacoes || '-'}</p>
-          </div>
-
-          {/* Add Note */}
-          <div style={{ background: 'var(--color-surface, #fff)', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FiEdit3 /> Nova Nota
-            </h3>
-            <textarea 
-              value={notaText} onChange={(e) => setNotaText(e.target.value)}
-              placeholder="Digite aqui..." rows="4"
-              style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', resize: 'vertical', marginBottom: '10px' }}
-            />
-            <button 
-              onClick={handleAddNota} disabled={actionLoading}
-              style={{ padding: '8px 16px', background: 'var(--color-primary, #007bff)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-            >
-              Adicionar Nota
-            </button>
+        {/* Lead Info */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <h3 className="font-heading" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: '#00F5A0' }}>
+            <FiInfo /> Detalhes do Lead
+          </h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <span style={{ fontSize: '0.8em', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Loteamento de Interesse</span>
+              <p style={{ margin: '4px 0 0 0', fontWeight: 600, color: '#FFFFFF' }}>{lead.empreendimento_nome || 'Ainda não definido / Aberto'}</p>
+            </div>
+            <div>
+              <span style={{ fontSize: '0.8em', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Corretor Responsável</span>
+              <p style={{ margin: '4px 0 0 0', fontWeight: 600, color: '#FFFFFF' }}>{lead.corretor_nome || 'Fila Geral'}</p>
+            </div>
+            <div>
+              <span style={{ fontSize: '0.8em', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Observações Iniciais</span>
+              <p style={{ margin: '4px 0 0 0', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>{lead.observacoes || 'Nenhuma observação registrada.'}</p>
+            </div>
+            {lead.perdido_motivo && (
+              <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.2)' }}>
+                <span style={{ fontSize: '0.8em', color: '#F43F5E', fontWeight: 700, textTransform: 'uppercase' }}>Motivo da Perda</span>
+                <p style={{ margin: '4px 0 0 0', color: '#F43F5E' }}>{lead.perdido_motivo}</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right Column - Timeline */}
-        <div style={{ flex: '2 1 400px', background: 'var(--color-surface, #fff)', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-          <h3 style={{ margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-            <FiClock /> Histórico
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {historico.length === 0 ? (
-              <p style={{ color: '#999' }}>Nenhum histórico encontrado.</p>
-            ) : (
-              historico.map(item => (
-                <div key={item.id} style={{ display: 'flex', gap: '15px', borderLeft: '2px solid #eee', paddingLeft: '15px', position: 'relative' }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--color-primary, #007bff)', position: 'absolute', left: '-6px', top: '5px' }}></div>
-                  <div style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>
-                      <strong>{item.corretor_nome || 'Sistema'}</strong>
-                      <span>{formatDate(item.created_at)}</span>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.95em' }}>
-                      {item.tipo === 'mudanca_etapa' ? (
-                        <span>Mudou etapa de <strong>{getEtapaLabel(item.etapa_anterior)}</strong> para <strong>{getEtapaLabel(item.etapa_nova)}</strong></span>
-                      ) : (
-                        item.descricao
-                      )}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
+        {/* Notes & History */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
+            <h3 className="font-heading" style={{ margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px', color: '#00F5A0' }}>
+              <FiEdit3 /> Nova Nota / Acompanhamento
+            </h3>
+            <textarea 
+              value={notaText} 
+              onChange={(e) => setNotaText(e.target.value)}
+              placeholder="Digite o resumo do contato com o cliente (ex: cliente gostou do lote comercial)..."
+              rows="3"
+              className="input"
+              style={{ width: '100%', marginBottom: '10px', resize: 'vertical' }}
+            />
+            <button 
+              onClick={handleAddNota} 
+              disabled={actionLoading || !notaText.trim()}
+              className="btn btn-primary"
+              style={{ float: 'right' }}
+            >
+              Adicionar Nota
+            </button>
+            <div style={{ clear: 'both' }}></div>
           </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: 0 }} />
+
+          {/* Timeline */}
+          <div>
+            <h3 className="font-heading" style={{ margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '8px', color: '#FFFFFF' }}>
+              <FiClock /> Linha do Tempo & Histórico
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '350px', overflowY: 'auto', paddingRight: '5px' }}>
+              {historico.length === 0 ? (
+                <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.9em' }}>Nenhum histórico registrado.</p>
+              ) : (
+                historico.map((item) => (
+                  <div key={item.id} style={{ display: 'flex', gap: '10px', fontSize: '0.9em', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00F5A0', marginTop: '6px', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-tertiary)', fontSize: '0.8em', marginBottom: '4px' }}>
+                        <span>{item.corretor_nome || 'Sistema'}</span>
+                        <span>{formatDate(item.created_at)}</span>
+                      </div>
+                      <p style={{ margin: 0, color: 'var(--color-text)' }}>
+                        {item.tipo === 'mudanca_etapa' ? (
+                          <span>Mudou etapa de <strong>{getEtapaLabel(item.etapa_anterior)}</strong> para <strong>{getEtapaLabel(item.etapa_nova)}</strong></span>
+                        ) : (
+                          item.descricao
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
         </div>
 
       </div>
 
       {/* Lost Modal */}
       {showLostModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '400px' }}>
-            <h3 style={{ margin: '0 0 15px 0' }}>Marcar como Perdido</h3>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Motivo *</label>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(6px)' }}>
+          <div className="card" style={{ padding: '20px', width: '90%', maxWidth: '420px', border: '1px solid rgba(244,63,94,0.4)' }}>
+            <h3 className="font-heading" style={{ margin: '0 0 10px 0', color: '#F43F5E' }}>Marcar Lead como Perdido</h3>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}>Informe o motivo pelo qual a negociação não avançou:</p>
             <textarea 
-              value={lostReason} onChange={(e) => setLostReason(e.target.value)} rows="3"
-              style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', marginBottom: '15px' }}
+              value={lostReason} 
+              onChange={(e) => setLostReason(e.target.value)} 
+              rows="3"
+              className="input"
+              placeholder="Ex: Cliente sem renda aprovada / Comprou outro imóvel..."
+              style={{ width: '100%', marginBottom: '15px' }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button onClick={() => setShowLostModal(false)} style={{ padding: '8px 16px', background: '#f9f9f9', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleMarkLost} disabled={actionLoading} style={{ padding: '8px 16px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Confirmar</button>
+              <button onClick={() => setShowLostModal(false)} className="btn btn-secondary">Cancelar</button>
+              <button onClick={handleMarkLost} disabled={actionLoading} className="btn" style={{ background: '#F43F5E', color: '#fff' }}>Confirmar Perda</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(6px)' }}>
+          <div className="card" style={{ padding: '25px', width: '90%', maxWidth: '440px', border: '1px solid rgba(244,63,94,0.4)' }}>
+            <h3 className="font-heading" style={{ margin: '0 0 10px 0', color: '#F43F5E', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FiTrash2 /> Excluir Lead?
+            </h3>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+              Tem certeza que deseja excluir <strong>{lead.nome}</strong>? Todas as propostas e histórico vinculados a este lead serão removidos.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => setShowDeleteModal(false)} className="btn btn-secondary">Cancelar</button>
+              <button onClick={handleDeleteLead} disabled={actionLoading} className="btn" style={{ background: '#F43F5E', color: '#fff', fontWeight: 'bold' }}>
+                Sim, Excluir Lead
+              </button>
             </div>
           </div>
         </div>

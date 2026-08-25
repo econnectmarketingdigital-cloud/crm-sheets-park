@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   const db = getDb();
   try {
-    let query = 'SELECT id, nome, email, telefone, role, ativo, avatar_cor, disponivel_rodizio FROM usuarios';
+    let query = 'SELECT id, nome, email, telefone, role, ativo, avatar_url, avatar_cor, disponivel_rodizio FROM usuarios';
     const usuarios = await db.query(query);
     res.json({ success: true, data: usuarios });
   } catch (error) {
@@ -18,7 +18,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   const db = getDb();
   try {
-    const user = await db.queryOne('SELECT id, nome, email, telefone, role, ativo, avatar_cor FROM usuarios WHERE id = ?', [req.params.id]);
+    const user = await db.queryOne('SELECT id, nome, email, telefone, role, ativo, avatar_url, avatar_cor FROM usuarios WHERE id = ?', [req.params.id]);
     if (!user) return res.status(404).json({ success: false, error: 'Usuário não encontrado' });
     res.json({ success: true, data: user });
   } catch (error) {

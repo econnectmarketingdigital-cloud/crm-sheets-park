@@ -25,7 +25,7 @@ export const startScheduler = () => {
         SELECT id, origem, corretor_id FROM leads 
         WHERE etapa = 'novo' 
           AND origem != 'manual'
-          AND created_at + (INTERVAL '1 minute' * ?) <= CURRENT_TIMESTAMP
+          AND created_at + make_interval(mins => $1::integer) <= CURRENT_TIMESTAMP
       `, [slaMinutos]);
 
       for (const lead of overdueLeads) {

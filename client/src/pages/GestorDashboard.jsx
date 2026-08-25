@@ -19,17 +19,38 @@ const GestorDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Process chart data dynamically
+  // Process chart data dynamically with continuous progression
   const chartData = React.useMemo(() => {
-    if (!data?.chart || data.chart.length === 0) return [];
+    const today = new Date().getDate();
+    const mapByDay = {};
+    if (data?.chart) {
+      data.chart.forEach(item => {
+        mapByDay[Number(item.dia)] = Number(item.vgv);
+      });
+    }
+
+    const points = [];
     let accumulated = 0;
-    return data.chart.map(item => {
-      accumulated += Number(item.vgv);
-      return {
-        day: String(item.dia).padStart(2, '0'),
-        vgv: accumulated
-      };
-    });
+    const maxDay = Math.max(today, 1);
+    
+    for (let d = 1; d <= maxDay; d++) {
+      if (mapByDay[d]) {
+        accumulated += mapByDay[d];
+      }
+      points.push({
+        day: `${String(d).padStart(2, '0')}`,
+        label: `Dia ${String(d).padStart(2, '0')}`,
+        vgv: accumulated,
+        vendaDia: mapByDay[d] || 0
+      });
+    }
+    
+    // If today is day 1 or only 1 point, prepend day 01 baseline so the curve connects
+    if (points.length === 1) {
+      points.unshift({ day: '01', label: 'Início do Mês', vgv: 0, vendaDia: 0 });
+    }
+
+    return points;
   }, [data]);
 
   useEffect(() => {
@@ -75,19 +96,25 @@ const GestorDashboard = () => {
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      const p = payload[0].payload;
       return (
         <div style={{
-          background: 'rgba(35, 29, 27, 0.9)',
+          background: 'rgba(14, 16, 20, 0.95)',
           backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          padding: '10px 15px',
-          borderRadius: '8px',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+          border: '1px solid rgba(0, 245, 160, 0.3)',
+          padding: '12px 16px',
+          borderRadius: '12px',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.6)'
         }}>
-          <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 5px 0', fontSize: '0.85rem' }}>Dia {label}</p>
-          <p style={{ color: '#D4956A', margin: 0, fontWeight: 700, fontSize: '1.1rem' }}>
+          <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 4px 0', fontSize: '0.85rem', fontWeight: 600 }}>{p.label || `Dia ${label}`}</p>
+          <p style={{ color: '#00F5A0', margin: 0, fontWeight: 800, fontSize: '1.25rem' }}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(payload[0].value)}
           </p>
+          {p.vendaDia > 0 && (
+            <p style={{ color: '#38BDF8', margin: '4px 0 0 0', fontSize: '0.75rem', fontWeight: 600 }}>
+              +{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(p.vendaDia)} realizada neste dia
+            </p>
+          )}
         </div>
       );
     }
@@ -99,10 +126,10 @@ const GestorDashboard = () => {
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 className="font-heading" style={{ fontSize: '2.5rem', margin: 0, fontWeight: 700, letterSpacing: '-0.5px' }}>
-            Visão Geral <span style={{ color: 'transparent', backgroundImage: 'linear-gradient(90deg, #D4956A, #B5451B)', WebkitBackgroundClip: 'text' }}>Gestão</span>
+          <h1 className="font-heading" style={{ fontSize: '2.5rem', margin: 0, fontWeight: 800, letterSpacing: '-0.5px' }}>
+            Visão Geral <span style={{ color: 'transparent', backgroundImage: 'linear-gradient(90deg, #00F5A0, #0EA5E9)', WebkitBackgroundClip: 'text' }}>Gestão</span>
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', margin: '0.5rem 0 0 0', fontSize: '1rem' }}>Acompanhamento de performance e VGV da equipe.</p>
+          <p style={{ color: 'var(--color-text-secondary)', margin: '0.5rem 0 0 0', fontSize: '1rem' }}>Acompanhamento de performance e VGV de loteamentos da equipe.</p>
         </div>
       </div>
 
@@ -111,17 +138,17 @@ const GestorDashboard = () => {
         {/* VGV Total Card with Progress visual */}
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ backgroundColor: 'rgba(212,149,106,0.15)', color: '#D4956A', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(212,149,106,0.3)' }}>
+            <div style={{ backgroundColor: 'rgba(0, 245, 160, 0.12)', color: '#00F5A0', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(0, 245, 160, 0.25)' }}>
               <FiTrendingUp size={22} />
             </div>
             <h3 className="font-heading" style={{ color: 'var(--color-text)', margin: 0, fontSize: '1.2rem' }}>VGV Total da Equipe</h3>
           </div>
           
-          <div style={{ fontSize: '2.8rem', fontWeight: 700, color: 'var(--color-text)', lineHeight: 1, marginBottom: '1.5rem', letterSpacing: '-1px' }}>
+          <div style={{ fontSize: '2.8rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1, marginBottom: '1.5rem', letterSpacing: '-1px' }}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vgvTotal)}
           </div>
           
-          <div style={{ fontSize: '0.85rem', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
+          <div style={{ fontSize: '0.85rem', color: '#00F5A0', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
             <FiTrendingUp /> +32% em relação ao mês passado (Simulado)
           </div>
         </div>
@@ -129,7 +156,7 @@ const GestorDashboard = () => {
         {/* Funil Card */}
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ backgroundColor: 'rgba(124,185,155,0.15)', color: '#7CB99B', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(124,185,155,0.3)' }}>
+            <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.12)', color: '#38BDF8', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
               <FiFilter size={22} />
             </div>
             <h3 className="font-heading" style={{ color: 'var(--color-text)', margin: 0, fontSize: '1.2rem' }}>Funil de Vendas Global</h3>
@@ -138,7 +165,7 @@ const GestorDashboard = () => {
             {Object.entries(funnelMap).map(([etapa, count]) => (
               <div key={etapa} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>{etapaLabels[etapa] || etapa}</span>
-                <span style={{ background: 'rgba(124,185,155,0.15)', color: '#7CB99B', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid rgba(124,185,155,0.3)' }}>
+                <span style={{ background: 'rgba(0, 245, 160, 0.12)', color: '#00F5A0', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid rgba(0, 245, 160, 0.25)' }}>
                   {count} leads
                 </span>
               </div>
@@ -153,7 +180,7 @@ const GestorDashboard = () => {
       {/* Chart Section */}
       <div className="card" style={{ padding: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-          <div style={{ backgroundColor: 'rgba(212,149,106,0.15)', color: '#D4956A', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(212,149,106,0.3)' }}>
+          <div style={{ backgroundColor: 'rgba(0, 245, 160, 0.12)', color: '#00F5A0', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(0, 245, 160, 0.25)' }}>
             <FiPieChart size={22} />
           </div>
           <div>
@@ -167,8 +194,8 @@ const GestorDashboard = () => {
             <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorVgv" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#D4956A" stopOpacity={0.4}/>
-                  <stop offset="95%" stopColor="#D4956A" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#00F5A0" stopOpacity={0.4}/>
+                  <stop offset="95%" stopColor="#00F5A0" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -181,7 +208,7 @@ const GestorDashboard = () => {
                 tickLine={false}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="vgv" stroke="#D4956A" strokeWidth={3} fillOpacity={1} fill="url(#colorVgv)" activeDot={{ r: 8, fill: '#D4956A', stroke: '#1a1512', strokeWidth: 4 }} />
+              <Area type="monotone" dataKey="vgv" stroke="#00F5A0" strokeWidth={3} fillOpacity={1} fill="url(#colorVgv)" activeDot={{ r: 8, fill: '#00F5A0', stroke: '#08090A', strokeWidth: 4 }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -220,9 +247,22 @@ const GestorDashboard = () => {
                     </span>
                   </td>
                   <td style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--color-text)' }}>
-                    {corretor.nome}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {corretor.avatar_url ? (
+                        <img 
+                          src={corretor.avatar_url} 
+                          alt={corretor.nome} 
+                          style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #00F5A0', flexShrink: 0 }} 
+                        />
+                      ) : (
+                        <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(0,245,160,0.15)', color: '#00F5A0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem', border: '1px solid rgba(0,245,160,0.3)', flexShrink: 0 }}>
+                          {corretor.nome?.charAt(0)?.toUpperCase()}
+                        </div>
+                      )}
+                      <span>{corretor.nome}</span>
+                    </div>
                   </td>
-                  <td style={{ padding: '1rem 1.5rem', color: '#D4956A', fontWeight: 700, fontSize: '1.1rem', textAlign: 'right' }}>
+                  <td style={{ padding: '1rem 1.5rem', color: '#00F5A0', fontWeight: 700, fontSize: '1.1rem', textAlign: 'right' }}>
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(corretor.vgv || 0)}
                   </td>
                 </tr>

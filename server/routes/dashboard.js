@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { getDb } from '../database.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 
@@ -22,10 +22,11 @@ router.get('/corretor', authenticateToken, async (req, res) => {
     const recentLeads = await db.query('SELECT id, nome, etapa, created_at FROM leads WHERE corretor_id = ? ORDER BY created_at DESC LIMIT 5', [corretor_id]);
 
     const allVgv = await db.query(`
-      SELECT corretor_id, SUM(valor_venda) as vgv FROM propostas
-      WHERE status = 'aprovada'
-      AND EXTRACT(MONTH FROM data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE)
-      GROUP BY corretor_id ORDER BY vgv DESC
+      SELECT u.nome, u.avatar_url, p.corretor_id, SUM(p.valor_venda) as vgv FROM propostas p
+      JOIN usuarios u ON p.corretor_id = u.id
+      WHERE p.status = 'aprovada'
+      AND EXTRACT(MONTH FROM p.data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE)
+      GROUP BY p.corretor_id, u.nome, u.avatar_url ORDER BY vgv DESC
     `);
     
     let rank = allVgv.findIndex(r => r.corretor_id === corretor_id) + 1;
@@ -41,11 +42,11 @@ router.get('/gestor', authenticateToken, requireRole('gestor'), async (req, res)
   const db = getDb();
   try {
     const allVgv = await db.query(`
-      SELECT u.nome, p.corretor_id, SUM(p.valor_venda) as vgv FROM propostas p
+      SELECT u.nome, u.avatar_url, p.corretor_id, SUM(p.valor_venda) as vgv FROM propostas p
       JOIN usuarios u ON p.corretor_id = u.id
       WHERE p.status = 'aprovada'
       AND EXTRACT(MONTH FROM p.data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE)
-      GROUP BY p.corretor_id, u.nome ORDER BY vgv DESC
+      GROUP BY p.corretor_id, u.nome, u.avatar_url ORDER BY vgv DESC
     `);
 
     const funnelOrigem = await db.query(`
@@ -53,10 +54,10 @@ router.get('/gestor', authenticateToken, requireRole('gestor'), async (req, res)
     `);
 
     const leadsVolume = await db.query(`
-      SELECT u.nome, COUNT(l.id) as total FROM usuarios u
+      SELECT u.nome, u.avatar_url, COUNT(l.id) as total FROM usuarios u
       LEFT JOIN leads l ON l.corretor_id = u.id
       WHERE u.role = 'corretor'
-      GROUP BY u.id, u.nome
+      GROUP BY u.id, u.nome, u.avatar_url
     `);
 
     const chartDataQuery = await db.query("SELECT EXTRACT(DAY FROM data_fechamento) as dia, SUM(valor_venda) as vgv FROM propostas WHERE status = 'aprovada' AND EXTRACT(MONTH FROM data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE) GROUP BY dia ORDER BY dia ASC");
@@ -71,7 +72,7 @@ router.get('/corretor/:id/performance', authenticateToken, requireRole('gestor')
   const corretorId = req.params.id;
 
   try {
-    const corretor = await db.queryOne('SELECT id, nome, email, telefone, role, ativo, avatar_cor, disponivel_rodizio FROM usuarios WHERE id = ?', [corretorId]);
+    const corretor = await db.queryOne('SELECT id, nome, email, telefone, role, ativo, avatar_url, avatar_cor, disponivel_rodizio FROM usuarios WHERE id = ?', [corretorId]);
     if (!corretor) return res.status(404).json({ success: false, error: 'Corretor nÃ£o encontrado' });
 
     const vgvTotal = await db.queryOne(`

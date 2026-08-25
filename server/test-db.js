@@ -4,8 +4,8 @@ const testConnection = async () => {
     host: 'aws-0-sa-east-1.pooler.supabase.com',
     port: 6543,
     database: 'postgres',
-    user: 'postgres.thlsmxbenxovnfjqgnyq',
-    password: 'Marcela@2026#2026',
+    user: 'postgres.xrsfqktxavdrjoduclma',
+    password: process.env.DB_PASSWORD || 'Sheetspark2026',
     ssl: { rejectUnauthorized: false }
   });
   const res = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");

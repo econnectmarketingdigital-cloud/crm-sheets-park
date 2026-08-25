@@ -4,8 +4,8 @@ const pool = new pg.Pool({
   host: 'aws-0-sa-east-1.pooler.supabase.com',
   port: 6543,
   database: 'postgres',
-  user: 'postgres.thlsmxbenxovnfjqgnyq',
-  password: 'Marcela@2026#2026',
+  user: 'postgres.xrsfqktxavdrjoduclma',
+  password: process.env.DB_PASSWORD || 'Sheetspark2026',
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 5000
 });

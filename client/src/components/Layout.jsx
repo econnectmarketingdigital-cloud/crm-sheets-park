@@ -42,7 +42,7 @@ const Layout = () => {
     { to: '/kanban', icon: <HiViewBoards size={24} />, label: 'Kanban' },
     { to: '/leads', icon: <HiUserGroup size={24} />, label: 'Leads' },
     { to: '/ranking', icon: <FiAward size={24} />, label: 'Ranking' },
-    { to: '/empreendimentos', icon: <HiOfficeBuilding size={24} />, label: 'Imóveis' },
+    { to: '/empreendimentos', icon: <HiOfficeBuilding size={24} />, label: 'Loteamentos' },
     { to: '/perfil', icon: <FiUser size={24} />, label: 'Meu Perfil' },
   ];
 
@@ -62,18 +62,28 @@ const Layout = () => {
         backgroundAttachment: 'fixed' 
       } : {}}
     >
-      {user?.wallpaper_url && <div style={{position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(10, 10, 10, 0.75)", zIndex: 0, pointerEvents: "none"}}></div>}
+      {user?.wallpaper_url && <div style={{position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(8, 9, 10, 0.8)", zIndex: 0, pointerEvents: "none"}}></div>}
       {/* Onboarding Tour Component */}
       <OnboardingTour isOpen={showTour} onClose={() => setShowTour(false)} />
 
       {/* Desktop Sidebar */}
       <aside className="sidebar">
-        <div className="brand" style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-          <img src="/logo_icon.png?v=2" alt="Logo Marcela Lopes" style={{ width: '64px', height: 'auto', objectFit: 'contain' }} />
-          <div style={{ textAlign: 'center' }}>
-            <span style={{ display: 'block', fontSize: '0.95rem', color: 'var(--color-primary)', fontWeight: 700, letterSpacing: '2.5px' }}>MARCELA LOPES</span>
-            <span style={{ fontSize: '0.65rem', color: 'var(--color-secondary)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 500 }}>Negócios Imobiliários</span>
-          </div>
+        <div className="brand" style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
+          <img 
+            src="/logo_icon.png?v=6" 
+            alt="Sheets Park" 
+            style={{ 
+              width: '80px', 
+              height: '80px', 
+              objectFit: 'cover',
+              borderRadius: '50%',
+              boxShadow: '0 0 20px rgba(0, 245, 160, 0.2)',
+              border: '1px solid rgba(255, 255, 255, 0.15)'
+            }} 
+          />
+          <span style={{ display: 'inline-block', fontSize: '0.65rem', color: '#00F5A0', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 700 }}>
+            Loteamentos
+          </span>
         </div>
         
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
@@ -117,10 +127,27 @@ const Layout = () => {
         </div>
 
         <div className="user-info" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <div>
-              <div style={{ fontWeight: '500' }}>{user?.nome}</div>
-              <div className="text-secondary" style={{ fontSize: '0.75rem' }}>{user?.role}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', overflow: 'hidden' }} onClick={() => navigate('/perfil')}>
+              {user?.avatar_url ? (
+                <img 
+                  src={user.avatar_url} 
+                  alt={user.nome} 
+                  style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #00F5A0', flexShrink: 0 }} 
+                />
+              ) : (
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(0, 245, 160, 0.15)', color: '#00F5A0', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', border: '1px solid rgba(0, 245, 160, 0.3)', flexShrink: 0 }}>
+                  {user?.nome?.charAt(0)?.toUpperCase() || 'U'}
+                </div>
+              )}
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ fontWeight: '600', fontSize: '0.85rem', color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '115px' }}>
+                  {user?.nome}
+                </div>
+                <div className="text-secondary" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>
+                  {user?.role}
+                </div>
+              </div>
             </div>
             <button onClick={logout} className="btn" style={{ padding: '0.5rem', color: 'var(--color-danger)' }} title="Sair do sistema">
               <HiLogout size={20} />

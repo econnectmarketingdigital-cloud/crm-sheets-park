@@ -3,6 +3,8 @@ import cors from 'cors';
 import { initDatabase } from './database.js';
 import { startScheduler } from './services/scheduler.js';
 
+import path from 'path';
+
 async function startServer() {
   // Initialize database first
   await initDatabase();
@@ -10,7 +12,11 @@ async function startServer() {
   const app = express();
 
   app.use(cors());
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+  // Serve static uploads
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Import Routes (after DB is initialized)
   const { default: authRoutes } = await import('./routes/auth.js');
@@ -22,6 +28,7 @@ async function startServer() {
   const { default: configRoutes } = await import('./routes/config.js');
   const { default: metasRoutes } = await import('./routes/metas.js');
   const { default: usuariosRoutes } = await import('./routes/usuarios.js');
+  const { default: uploadRoutes } = await import('./routes/upload.js');
 
   // Mount routes
   app.use('/api/auth', authRoutes);
@@ -33,12 +40,13 @@ async function startServer() {
   app.use('/api/config', configRoutes);
   app.use('/api/metas', metasRoutes);
   app.use('/api/usuarios', usuariosRoutes);
+  app.use('/api/upload', uploadRoutes);
   app.use('/api', empreendimentosRoutes);
 
   const PORT = process.env.PORT || 3001;
 
   app.listen(PORT, () => {
-    console.log(`\n🏠 CRM Marcela Lopes API rodando na porta ${PORT}`);
+    console.log(`\n🏠 CRM Sheets Park API rodando na porta ${PORT}`);
     console.log(`   http://localhost:${PORT}/api\n`);
     startScheduler();
   });

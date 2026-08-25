@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import { FiUserPlus, FiArrowLeft, FiSave } from 'react-icons/fi';
 
 const formatPhone = (val) => {
   let v = val.replace(/\D/g, '');
@@ -47,85 +48,142 @@ export default function NovoLead() {
     setLoading(true);
     try {
       await api.leads.createLead({
-        ...formData,
+        nome: formData.nome.trim(),
+        telefone: formData.telefone.trim(),
+        email: formData.email && formData.email.trim() ? formData.email.trim() : null,
+        empreendimento_interesse_id: formData.empreendimento_interesse_id || null,
+        observacoes: formData.observacoes && formData.observacoes.trim() ? formData.observacoes.trim() : null,
         origem: 'manual'
       });
-      addToast('Lead criado com sucesso!', 'success');
+      addToast('Lead cadastrado com sucesso!', 'success');
       navigate('/kanban');
     } catch (err) {
-      addToast(err.message || 'Erro ao criar lead', 'error');
+      addToast(err.message || 'Erro ao cadastrar lead', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '20px' }}>Novo Lead</h1>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', backgroundColor: 'var(--color-surface, #fff)', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-        
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nome *</label>
-          <input 
-            type="text" name="nome" value={formData.nome} onChange={handleChange} required
-            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </div>
+    <div style={{ maxWidth: '650px', margin: '0 auto', padding: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+        <button 
+          onClick={() => navigate(-1)} 
+          className="btn btn-secondary"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <FiArrowLeft /> Voltar
+        </button>
+        <h1 className="font-heading" style={{ fontSize: '1.75rem', margin: 0, fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <FiUserPlus style={{ color: '#00F5A0' }} /> Novo Lead
+        </h1>
+      </div>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Telefone *</label>
-          <input 
-            type="text" name="telefone" value={formData.telefone} onChange={handleChange} required
-            placeholder="(XX) XXXXX-XXXX"
-            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </div>
+      <div className="card" style={{ padding: '2rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text)' }}>
+              Nome Completo *
+            </label>
+            <input 
+              type="text" 
+              name="nome" 
+              value={formData.nome} 
+              onChange={handleChange} 
+              required
+              placeholder="Ex: Gabriel Lucas dos Anjos"
+              className="input"
+              style={{ width: '100%' }}
+            />
+          </div>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email</label>
-          <input 
-            type="email" name="email" value={formData.email} onChange={handleChange}
-            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text)' }}>
+                WhatsApp / Telefone *
+              </label>
+              <input 
+                type="text" 
+                name="telefone" 
+                value={formData.telefone} 
+                onChange={handleChange} 
+                required
+                placeholder="(98) 98445-3529"
+                className="input"
+                style={{ width: '100%' }}
+              />
+            </div>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Empreendimento de Interesse</label>
-          <select 
-            name="empreendimento_interesse_id" value={formData.empreendimento_interesse_id} onChange={handleChange}
-            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
-          >
-            <option value="">Ainda não definido / Nenhum específico</option>
-            {empreendimentos.map(emp => (
-              <option key={emp.id} value={emp.id}>{emp.nome}</option>
-            ))}
-          </select>
-        </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text)' }}>
+                E-mail
+              </label>
+              <input 
+                type="email" 
+                name="email" 
+                value={formData.email} 
+                onChange={handleChange}
+                placeholder="cliente@email.com"
+                className="input"
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Observações</label>
-          <textarea 
-            name="observacoes" value={formData.observacoes} onChange={handleChange} rows="4"
-            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', resize: 'vertical' }}
-          />
-        </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text)' }}>
+              Loteamento / Opção de Interesse
+            </label>
+            <select 
+              name="empreendimento_interesse_id" 
+              value={formData.empreendimento_interesse_id} 
+              onChange={handleChange}
+              className="input"
+              style={{ width: '100%' }}
+            >
+              <option value="">Ainda não definido / Nenhum específico</option>
+              {empreendimentos.map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.nome}</option>
+              ))}
+            </select>
+          </div>
 
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-          <button 
-            type="button" onClick={() => navigate(-1)}
-            style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: '#f9f9f9', cursor: 'pointer' }}
-          >
-            Cancelar
-          </button>
-          <button 
-            type="submit" disabled={loading}
-            style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-primary, #007bff)', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            {loading ? 'Salvando...' : 'Salvar Lead'}
-          </button>
-        </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text)' }}>
+              Observações
+            </label>
+            <textarea 
+              name="observacoes" 
+              value={formData.observacoes} 
+              onChange={handleChange} 
+              rows="4"
+              placeholder="Ex: Cliente tem interesse em lote residencial próximo à área de lazer..."
+              className="input"
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+          </div>
 
-      </form>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem', borderTop: '1px solid var(--color-border)', paddingTop: '1.25rem' }}>
+            <button 
+              type="button" 
+              onClick={() => navigate(-1)}
+              className="btn btn-secondary"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.75rem 1.75rem' }}
+            >
+              <FiSave /> {loading ? 'Salvando...' : 'Salvar Lead'}
+            </button>
+          </div>
+
+        </form>
+      </div>
     </div>
   );
 }

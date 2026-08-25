@@ -2,6 +2,7 @@ import express from 'express';
 import { getDb } from '../database.js';
 import { findExistingLead } from '../services/deduplicacao.js';
 import { getNextCorretor } from '../services/rodizio.js';
+import { notifyCorretorNewLead } from '../services/notification.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
@@ -53,6 +54,9 @@ const handleIncomingLead = (leadData, res) => {
       `, [id, nome, telefone, email, origem, campanha, rendaFinal, observacoes || null, corretorId, empreendimentoId]);
       
       await db.execute(`INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) VALUES (?, ?, ?, 'sistema', ?)`, [uuidv4(), id, corretorId, `Lead via Webhook ${origem}`]);
+      
+      // Trigger notification email to assigned broker
+      notifyCorretorNewLead(id).catch(err => console.error('Notification error:', err));
         
     } catch (e) {
       console.error('Webhook error:', e);

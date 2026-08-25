@@ -39,6 +39,7 @@ export default {
     register: (data) => fetchWithAuth('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     getMe: () => fetchWithAuth('/auth/me'),
     updateProfile: (data) => fetchWithAuth('/auth/me', { method: 'PUT', body: JSON.stringify(data) }),
+    uploadImage: (image, type) => fetchWithAuth('/upload', { method: 'POST', body: JSON.stringify({ image, type }) }),
   },
   leads: {
     getLeads: (params) => {
@@ -52,6 +53,8 @@ export default {
     fecharVenda: (id, data) => fetchWithAuth(`/leads/${id}/fechar_venda`, { method: 'POST', body: JSON.stringify(data) }),
     addNota: (id, descricao) => fetchWithAuth(`/leads/${id}/nota`, { method: 'POST', body: JSON.stringify({ descricao }) }),
     getHistorico: (id) => fetchWithAuth(`/leads/${id}/historico`),
+    deleteLead: (id) => fetchWithAuth(`/leads/${id}`, { method: 'DELETE' }),
+    clearAllLeads: () => fetchWithAuth('/leads/clear-all', { method: 'POST' }),
   },
   empreendimentos: {
     getEmpreendimentos: () => fetchWithAuth('/empreendimentos'),

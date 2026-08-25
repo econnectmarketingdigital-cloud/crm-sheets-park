@@ -65,73 +65,100 @@ const Login = () => {
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center', 
-      backgroundColor: '#0a0a0a',
+      backgroundColor: '#08090A',
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Premium Animated Background */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0, opacity: 0.6 }}>
+      {/* Urban Topographic Grid & Ambient Glow */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+        backgroundImage: `
+          linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px)
+        `,
+        backgroundSize: '40px 40px',
+        zIndex: 0
+      }} />
+
+      {/* Ambient Glows */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
         <div style={{
-          position: 'absolute', top: '-10%', left: '-10%', width: '50vw', height: '50vw',
-          background: 'radial-gradient(circle, rgba(212,149,106,0.15) 0%, transparent 70%)',
-          borderRadius: '50%', filter: 'blur(60px)', animation: 'float 10s infinite alternate ease-in-out'
+          position: 'absolute', top: '-15%', left: '10%', width: '50vw', height: '50vw',
+          background: 'radial-gradient(circle, rgba(0, 245, 160, 0.12) 0%, transparent 70%)',
+          borderRadius: '50%', filter: 'blur(90px)', animation: 'float 12s infinite alternate ease-in-out'
         }} />
         <div style={{
-          position: 'absolute', bottom: '-20%', right: '-10%', width: '60vw', height: '60vw',
-          background: 'radial-gradient(circle, rgba(181,69,27,0.15) 0%, transparent 70%)',
-          borderRadius: '50%', filter: 'blur(80px)', animation: 'float 12s infinite alternate-reverse ease-in-out'
+          position: 'absolute', bottom: '-20%', right: '5%', width: '55vw', height: '55vw',
+          background: 'radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, transparent 70%)',
+          borderRadius: '50%', filter: 'blur(100px)', animation: 'float 15s infinite alternate-reverse ease-in-out'
         }} />
       </div>
 
       <style>{`
-        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(5%, 5%) scale(1.05); } }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(4%, 4%) scale(1.08); } }
         .glass-login-card {
-          background: rgba(30, 25, 23, 0.6);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212,149,106,0.1);
+          background: rgba(14, 16, 20, 0.75);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 245, 160, 0.15);
           border-radius: 24px;
           padding: 3rem 2.5rem;
           position: relative;
           z-index: 10;
         }
         .glass-input {
-          background: rgba(0, 0, 0, 0.2) !important;
+          background: rgba(8, 10, 14, 0.7) !important;
           border: 1px solid rgba(255, 255, 255, 0.1) !important;
           color: white !important;
           border-radius: 12px !important;
-          padding: 0.8rem 1rem !important;
+          padding: 0.85rem 1rem !important;
           transition: all 0.3s ease !important;
         }
         .glass-input:focus {
-          border-color: rgba(212,149,106, 0.5) !important;
-          box-shadow: 0 0 0 4px rgba(212,149,106, 0.1) !important;
-          background: rgba(0, 0, 0, 0.4) !important;
+          border-color: rgba(0, 245, 160, 0.6) !important;
+          box-shadow: 0 0 0 4px rgba(0, 245, 160, 0.15) !important;
+          background: rgba(12, 15, 20, 0.9) !important;
         }
         .premium-btn {
-          background: linear-gradient(135deg, #D4956A, #B5451B);
+          background: linear-gradient(135deg, #00F5A0 0%, #00D68B 100%);
           border: none;
           border-radius: 12px;
-          color: white;
-          font-weight: 600;
+          color: #061912;
+          font-weight: 700;
+          letter-spacing: 0.5px;
           padding: 1rem;
           transition: all 0.3s ease;
-          box-shadow: 0 4px 15px rgba(181,69,27, 0.3);
+          box-shadow: 0 4px 20px rgba(0, 245, 160, 0.25);
+          cursor: pointer;
         }
         .premium-btn:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(181,69,27, 0.5);
+          box-shadow: 0 8px 30px rgba(0, 245, 160, 0.45);
+          background: linear-gradient(135deg, #24fdb0, #00e092);
         }
       `}</style>
 
       <div className="glass-login-card" style={{ width: '100%', maxWidth: '420px', margin: '2rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-          <img src="/logo_icon.png?v=2" alt="Logo Marcela Lopes" style={{ width: '80px', height: 'auto', objectFit: 'contain' }} />
-          <div>
-            <h1 className="font-heading" style={{ color: 'var(--color-primary)', fontSize: '1.75rem', marginBottom: '0.25rem', fontWeight: 700, letterSpacing: '3px' }}>MARCELA LOPES</h1>
-            <p style={{ color: 'var(--color-secondary)', letterSpacing: '3px', textTransform: 'uppercase', fontSize: '0.65rem', fontWeight: 500 }}>Negócios Imobiliários</p>
-          </div>
+        <div style={{ textAlign: 'center', marginBottom: '2.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <img 
+            src="/logo_icon.png?v=6" 
+            alt="Sheets Park" 
+            style={{ 
+              width: '125px', 
+              height: '125px', 
+              objectFit: 'cover', 
+              borderRadius: '50%',
+              display: 'block',
+              boxShadow: '0 0 25px rgba(0, 245, 160, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.15)'
+            }} 
+          />
+          <p style={{ color: '#00F5A0', letterSpacing: '3px', textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 700, marginTop: '1rem', opacity: 0.9 }}>
+            Gestão de Loteamentos & Vendas
+          </p>
         </div>
 
         {/* Google Login Button */}

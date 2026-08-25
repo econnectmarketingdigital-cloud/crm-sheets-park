@@ -3,10 +3,18 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
 const { Client } = pg;
-const connectionString = 'postgresql://postgres:Marcela%402026%232026@db.thlsmxbenxovnfjqgnyq.supabase.co:5432/postgres';
+const dbPassword = process.env.DB_PASSWORD || 'Sheetspark2026';
+const connectionString = `postgresql://postgres:${dbPassword}@db.xrsfqktxavdrjoduclma.supabase.co:5432/postgres`;
 
 async function migrate() {
-  const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
+  const client = new Client({
+    host: 'aws-0-sa-east-1.pooler.supabase.com',
+    port: 6543,
+    database: 'postgres',
+    user: 'postgres.xrsfqktxavdrjoduclma',
+    password: dbPassword,
+    ssl: { rejectUnauthorized: false }
+  });
   await client.connect();
   console.log('⚡ Conectado ao Supabase para migração...');
 
@@ -30,6 +38,8 @@ async function migrate() {
         pausado_rodizio INT DEFAULT 0,
         meta_vgv_pessoal NUMERIC DEFAULT 0,
         avatar_cor VARCHAR(50),
+        wallpaper_url TEXT,
+        wallpaper_position TEXT DEFAULT 'center center',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -156,25 +166,25 @@ async function migrate() {
       );
     }
 
-    // 3. Insert Users (Marcela Lopes + Corretores)
-    const gestorId = uuidv4();
-    await client.query(`
-      INSERT INTO usuarios (id, nome, email, senha_hash, role)
-      VALUES ($1, 'Marcela Lopes', 'gestor@marcelaloopes.com.br', $2, 'gestor')
-      ON CONFLICT (email) DO NOTHING
-    `, [gestorId, bcrypt.hashSync('admin123', 10)]);
-
-    const corretores = [
-      { id: uuidv4(), nome: 'Ana Silva', email: 'ana@marcelaloopes.com.br' },
-      { id: uuidv4(), nome: 'João Santos', email: 'joao@marcelaloopes.com.br' },
-      { id: uuidv4(), nome: 'Maria Costa', email: 'maria@marcelaloopes.com.br' }
+    // 3. Insert Users (Gestores & Admins)
+    const defaultUsers = [
+      { nome: 'Administrador Sheets Park', email: 'admin@sheetspark.com.br', role: 'gestor', pass: 'admin123' },
+      { nome: 'Gestor Sheets Park', email: 'gestor@sheetspark.com.br', role: 'gestor', pass: 'admin123' },
+      { nome: 'Gabriel Lucas', email: 'ogabriellucaz08@gmail.com', role: 'gestor', pass: 'admin123' },
+      { nome: 'Marcela Lopes', email: 'marcelalopesf@gmail.com', role: 'gestor', pass: 'admin123' },
+      { nome: 'Agência eConnect', email: 'econnectmarketingdigital@gmail.com', role: 'gestor', pass: 'admin123' },
+      { nome: 'Agência iConnect', email: 'iconnectmarketingdigital@gmail.com', role: 'gestor', pass: 'admin123' },
+      { nome: 'Ana Silva', email: 'ana@sheetspark.com.br', role: 'corretor', pass: 'corretor123' },
+      { nome: 'João Santos', email: 'joao@sheetspark.com.br', role: 'corretor', pass: 'corretor123' },
+      { nome: 'Maria Costa', email: 'maria@sheetspark.com.br', role: 'corretor', pass: 'corretor123' }
     ];
-    for (const c of corretores) {
+
+    for (const u of defaultUsers) {
       await client.query(`
-        INSERT INTO usuarios (id, nome, email, senha_hash, role)
-        VALUES ($1, $2, $3, $4, 'corretor')
-        ON CONFLICT (email) DO NOTHING
-      `, [c.id, c.nome, c.email, bcrypt.hashSync('corretor123', 10)]);
+        INSERT INTO usuarios (id, nome, email, senha_hash, role, ativo, disponivel_rodizio)
+        VALUES ($1, $2, $3, $4, $5, 1, $6)
+        ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role, ativo = 1;
+      `, [uuidv4(), u.nome, u.email.toLowerCase().trim(), bcrypt.hashSync(u.pass, 10), u.role, u.role === 'corretor' ? 1 : 0]);
     }
 
     // 4. Insert Canops Developments
