@@ -110,30 +110,28 @@ export async function notifyCorretorNewLead(leadId) {
       return;
     }
 
-    // 4. Send real email using nodemailer
-    console.log(`[Notification] Connecting to SMTP ${smtpHost}:${smtpPort}...`);
+    // 4. Manually resolve SMTP host to IPv4 to bypass Render's broken IPv6 routing
+    const { address: ipv4Address } = await dns.promises.lookup(smtpHost, { family: 4 });
+    console.log(`[Notification] Resolved ${smtpHost} to IPv4: ${ipv4Address}`);
+
     const transporter = nodemailer.createTransport({
-      host: smtpHost,
+      host: ipv4Address,
       port: smtpPort,
-      secure: smtpPort === 465, // true for 465, false for 587
+      secure: smtpPort === 465,
       auth: {
         user: smtpUser,
         pass: smtpPass
       },
-      // Force DNS lookup to use IPv4 only to bypass Render's broken IPv6 network routes
-      lookup: (hostname, options, callback) => {
-        dns.lookup(hostname, { family: 4 }, callback);
-      },
-      family: 4, // Force IPv4
-      connectionTimeout: 8000, // 8 seconds timeout
-      greetingTimeout: 8000,
-      socketTimeout: 8000,
       tls: {
-        rejectUnauthorized: false // Avoid SSL certificate issues on some environments
-      }
+        servername: smtpHost, // Use original hostname for TLS certificate verification
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000
     });
 
-    console.log(`[Notification] Sending email to ${corretor_email}...`);
+    console.log(`[Notification] Sending email to ${corretor_email} via ${ipv4Address}:${smtpPort}...`);
     await transporter.sendMail({
       from: smtpFrom,
       to: corretor_email,
@@ -141,9 +139,8 @@ export async function notifyCorretorNewLead(leadId) {
       html: htmlBody
     });
 
-    console.log(`[Notification] Email sent successfully to ${corretor_email}`);
+    console.log(`[Notification] ✅ Email sent successfully to ${corretor_email}`);
   } catch (err) {
     console.error('[Notification] Failed to send email:', err.message);
-    if (err.stack) console.error(err.stack);
   }
 }
