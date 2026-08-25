@@ -2,7 +2,7 @@ import { getDb } from '../database.js';
 
 /**
  * Sends an email notification to the assigned broker for a new lead.
- * Uses Resend HTTP API (port 443) instead of SMTP (ports 465/587)
+ * Uses Brevo HTTP API (port 443) instead of SMTP (ports 465/587)
  * because Render blocks outbound SMTP connections on free tier.
  */
 export async function notifyCorretorNewLead(leadId) {
@@ -36,14 +36,15 @@ export async function notifyCorretorNewLead(leadId) {
 
     console.log(`[Notification] Preparing email for ${corretor_nome} (${corretor_email}) regarding lead: ${nome}`);
 
-    // 2. Check for Resend API key
-    const resendApiKey = process.env.RESEND_API_KEY;
-    const emailFrom = process.env.EMAIL_FROM || 'Sheets Park CRM <onboarding@resend.dev>';
+    // 2. Check for Brevo API key
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    const senderEmail = process.env.SENDER_EMAIL || 'econnectmarketingdigital@gmail.com';
+    const senderName = process.env.SENDER_NAME || 'Sheets Park CRM';
 
-    if (!resendApiKey) {
+    if (!brevoApiKey) {
       console.log('----------------------------------------------------');
-      console.log('📢 [E-mail Simulado - RESEND_API_KEY Não Configurado]');
-      console.log(`De: ${emailFrom}`);
+      console.log('📢 [E-mail Simulado - BREVO_API_KEY Não Configurado]');
+      console.log(`De: ${senderName} <${senderEmail}>`);
       console.log(`Para: ${corretor_email}`);
       console.log(`Assunto: 🔥 Novo Lead no CRM: ${nome}`);
       console.log(`Dados: Tel=${telefone}, Interesse=${empreendimento_nome}`);
@@ -107,29 +108,35 @@ export async function notifyCorretorNewLead(leadId) {
       </html>
     `;
 
-    // 4. Send email via Resend HTTP API (uses HTTPS port 443 — never blocked by cloud providers)
-    console.log(`[Notification] Sending email via Resend API to ${corretor_email}...`);
+    // 4. Send email via Brevo HTTP API (uses HTTPS port 443 — never blocked by cloud providers)
+    console.log(`[Notification] Sending email via Brevo API to ${corretor_email}...`);
 
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json'
+        'api-key': brevoApiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
-        from: emailFrom,
-        to: [corretor_email],
+        sender: {
+          name: senderName,
+          email: senderEmail
+        },
+        to: [
+          { email: corretor_email, name: corretor_nome }
+        ],
         subject: `🔥 Atenção: Novo Lead no CRM - ${nome}`,
-        html: htmlBody
+        htmlContent: htmlBody
       })
     });
 
     const result = await response.json();
 
     if (response.ok) {
-      console.log(`[Notification] ✅ Email sent successfully to ${corretor_email} (Resend ID: ${result.id})`);
+      console.log(`[Notification] ✅ Email sent successfully to ${corretor_email} (Brevo messageId: ${result.messageId})`);
     } else {
-      console.error(`[Notification] ❌ Resend API error (${response.status}):`, JSON.stringify(result));
+      console.error(`[Notification] ❌ Brevo API error (${response.status}):`, JSON.stringify(result));
     }
   } catch (err) {
     console.error('[Notification] Failed to send email:', err.message);
