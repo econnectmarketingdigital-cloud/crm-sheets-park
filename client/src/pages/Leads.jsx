@@ -57,6 +57,9 @@ export default function Leads() {
   const corretorId = searchParams.get('corretor_id');
   const navigate = useNavigate();
   const { addToast } = useToast();
+  
+  const [selectedLeads, setSelectedLeads] = useState([]);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -69,6 +72,7 @@ export default function Leads() {
       if (corretorId) params.corretor_id = corretorId;
       const data = await api.leads.getLeads(params);
       setLeads(data || []);
+      setSelectedLeads([]); // clear selection on reload
     } catch (err) {
       addToast(err.message || 'Erro ao carregar leads', 'error');
     } finally {
@@ -87,6 +91,47 @@ export default function Leads() {
 
     return matchesSearch && matchesEtapa && matchesOrigem;
   });
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedLeads(filteredLeads.map(l => l.id));
+    } else {
+      setSelectedLeads([]);
+    }
+  };
+
+  const handleSelectOne = (e, id) => {
+    e.stopPropagation(); // prevent row click
+    if (e.target.checked) {
+      setSelectedLeads(prev => [...prev, id]);
+    } else {
+      setSelectedLeads(prev => prev.filter(leadId => leadId !== id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Tem certeza que deseja excluir ${selectedLeads.length} lead(s) selecionado(s)? Esta ação é irreversível.`)) {
+      return;
+    }
+    
+    setIsDeletingBulk(true);
+    let successCount = 0;
+    
+    try {
+      // Execute in parallel chunks or one by one
+      for (const id of selectedLeads) {
+        await api.leads.deleteLead(id);
+        successCount++;
+      }
+      addToast(`${successCount} lead(s) excluído(s) com sucesso.`, 'success');
+      fetchLeads(); // refresh
+    } catch (err) {
+      addToast(`Erro ao excluir alguns leads. ${successCount} excluídos.`, 'error');
+      fetchLeads(); // refresh anyway to show updated state
+    } finally {
+      setIsDeletingBulk(false);
+    }
+  };
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -142,6 +187,28 @@ export default function Leads() {
         </select>
       </div>
 
+      {selectedLeads.length > 0 && (
+        <div style={{ 
+          display: 'flex', alignItems: 'center', gap: '15px', 
+          backgroundColor: 'var(--color-surface-hover)', padding: '12px 20px', 
+          borderRadius: '8px', marginBottom: '20px', border: '1px solid var(--color-border)' 
+        }}>
+          <span style={{ fontWeight: 600 }}>{selectedLeads.length} lead(s) selecionado(s)</span>
+          <div style={{ flex: 1 }}></div>
+          <button 
+            onClick={handleBulkDelete}
+            disabled={isDeletingBulk}
+            style={{
+              backgroundColor: '#e74c3c', color: 'white', border: 'none', 
+              padding: '8px 16px', borderRadius: '4px', cursor: isDeletingBulk ? 'not-allowed' : 'pointer',
+              fontWeight: 600
+            }}
+          >
+            {isDeletingBulk ? 'Excluindo...' : 'Excluir Selecionados'}
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px' }}>Carregando leads...</div>
       ) : (
@@ -150,6 +217,14 @@ export default function Leads() {
             <table className="table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px', textAlign: 'center' }}>
+                    <input 
+                      type="checkbox" 
+                      onChange={handleSelectAll}
+                      checked={filteredLeads.length > 0 && selectedLeads.length === filteredLeads.length}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </th>
                   <th>Nome</th>
                   <th>Telefone</th>
                   <th>Origem</th>
@@ -163,8 +238,16 @@ export default function Leads() {
                   <tr 
                     key={lead.id} 
                     onClick={() => navigate(`/leads/${lead.id}`)}
-                    style={{ cursor: 'pointer' }}
+                    style={{ cursor: 'pointer', backgroundColor: selectedLeads.includes(lead.id) ? 'var(--color-surface-hover)' : 'transparent' }}
                   >
+                    <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedLeads.includes(lead.id)}
+                        onChange={(e) => handleSelectOne(e, lead.id)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </td>
                     <td style={{ fontWeight: '500' }}>{lead.nome}</td>
                     <td>{lead.telefone}</td>
                     <td>
@@ -189,7 +272,7 @@ export default function Leads() {
                 ))}
                 {filteredLeads.length === 0 && (
                   <tr>
-                    <td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>Nenhum lead encontrado.</td>
+                    <td colSpan="7" style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>Nenhum lead encontrado.</td>
                   </tr>
                 )}
               </tbody>

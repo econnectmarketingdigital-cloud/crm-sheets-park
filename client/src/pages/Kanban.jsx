@@ -114,7 +114,7 @@ const Kanban = () => {
           {columns.map(col => {
             const colLeads = getLeadsByEtapa(col.id);
             return (
-              <div key={col.id} style={{ minWidth: '260px', flex: '1' }}>
+              <div key={col.id} style={{ minWidth: '260px', flex: '1', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'var(--color-surface)', borderRadius: '8px' }}>
                   <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text)' }}>{col.title}</span>
                   <span className="badge" style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}>{colLeads.length}</span>
@@ -127,7 +127,10 @@ const Kanban = () => {
                       {...provided.droppableProps}
                       style={{
                         minHeight: '100px',
+                        flex: '1',
+                        overflowY: 'auto',
                         padding: '0.25rem',
+                        paddingRight: '0.5rem',
                         borderRadius: '8px',
                         backgroundColor: snapshot.isDraggingOver ? 'var(--color-surface-hover)' : 'transparent',
                         transition: 'background-color 0.2s ease'
