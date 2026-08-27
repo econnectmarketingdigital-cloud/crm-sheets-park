@@ -39,7 +39,21 @@ const handleIncomingLead = (leadData, res) => {
       
       let empreendimentoId = null;
       if (empreendimento) {
-        const emp = await db.queryOne('SELECT id FROM empreendimentos WHERE nome LIKE ?', [`%${empreendimento}%`]);
+        // 1. Tenta match direto case-insensitive
+        let emp = await db.queryOne('SELECT id FROM empreendimentos WHERE nome ILIKE ?', [`%${empreendimento}%`]);
+        
+        // 2. Se não achou, tenta por palavras-chave conhecidas (Residenciais, Comerciais, Beira-Rio)
+        if (!emp) {
+          const lower = empreendimento.toLowerCase();
+          if (lower.includes('residencial') || lower.includes('residenciais')) {
+            emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Residenciais%'");
+          } else if (lower.includes('comercial') || lower.includes('comerciais')) {
+            emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Comerciais%'");
+          } else if (lower.includes('beira') || lower.includes('rio')) {
+            emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Beira-Rio%'");
+          }
+        }
+
         if (emp) {
           empreendimentoId = emp.id;
         }
