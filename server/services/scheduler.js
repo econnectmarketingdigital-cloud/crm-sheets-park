@@ -18,6 +18,9 @@ export const startScheduler = () => {
         await db.execute("UPDATE unidades SET status = 'disponivel' WHERE id = ?", [res.unidade_id]);
       }
 
+      // NOTA: Redistribuição automática de leads desativada a pedido do usuário.
+      // O lead agora permanece fixo com o corretor que o recebeu via rodízio.
+      /*
       const slaConfig = await db.queryOne("SELECT valor FROM configuracoes WHERE chave = 'sla_redistribuicao_minutos'");
       const slaMinutos = slaConfig ? parseInt(slaConfig.valor, 10) : 30;
 
@@ -30,23 +33,20 @@ export const startScheduler = () => {
       const now = new Date();
 
       for (const lead of leadsNovos) {
-        // Função para calcular minutos úteis (das 08:00 às 20:00 BRT)
         let businessMinutesElapsed = 0;
         let current = new Date(lead.created_at);
         let iterations = 0;
 
-        while (current < now && iterations < 10000) { // 10000 min limite de segurança
-          // Hora em Brasília (BRT = UTC-3)
+        while (current < now && iterations < 10000) {
           const brtHour = (current.getUTCHours() - 3 + 24) % 24;
           
           if (brtHour >= 8 && brtHour < 20) {
             businessMinutesElapsed++;
           }
-          current = new Date(current.getTime() + 60000); // avança 1 minuto
+          current = new Date(current.getTime() + 60000);
           iterations++;
         }
 
-        // Se o lead estourou o tempo de SLA em horário comercial, redistribui
         if (businessMinutesElapsed >= slaMinutos) {
           await db.execute(`
             INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) 
@@ -69,6 +69,7 @@ export const startScheduler = () => {
           }
         }
       }
+      */
     } catch (error) {
       console.error('Error in scheduler:', error);
     }

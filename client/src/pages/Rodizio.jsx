@@ -97,23 +97,17 @@ const Rodizio = () => {
           
           <div style={{ 
             marginTop: '1.5rem', padding: '1rem', borderRadius: '8px', 
-            backgroundColor: new Date().getHours() >= 8 && new Date().getHours() < 20 ? '#e8f5e9' : '#fff3e0',
-            border: `1px solid ${new Date().getHours() >= 8 && new Date().getHours() < 20 ? '#a5d6a7' : '#ffcc80'}`,
+            backgroundColor: '#e8f5e9',
+            border: '1px solid #a5d6a7',
             display: 'flex', alignItems: 'center', gap: '10px'
           }}>
-            <span style={{ fontSize: '1.5rem' }}>
-              {new Date().getHours() >= 8 && new Date().getHours() < 20 ? '☀️' : '🌙'}
-            </span>
+            <span style={{ fontSize: '1.5rem' }}>🔒</span>
             <div>
-              <strong style={{ display: 'block', color: new Date().getHours() >= 8 && new Date().getHours() < 20 ? '#2e7d32' : '#e65100' }}>
-                {new Date().getHours() >= 8 && new Date().getHours() < 20 
-                  ? 'Redistribuição Automática: ATIVADA' 
-                  : 'Redistribuição Automática: PAUSADA (Horário Noturno)'}
+              <strong style={{ display: 'block', color: '#2e7d32' }}>
+                Redistribuição Automática de Leads: DESATIVADA
               </strong>
-              <span style={{ fontSize: '0.85rem', color: '#666' }}>
-                {new Date().getHours() >= 8 && new Date().getHours() < 20 
-                  ? 'O SLA está correndo normalmente. Leads não atendidos no prazo serão redistribuídos.' 
-                  : 'O relógio de SLA está congelado. Leads recebidos agora só começarão a contar o prazo a partir das 08h00 da manhã.'}
+              <span style={{ fontSize: '0.85rem', color: '#555' }}>
+                Os leads são distribuídos igualmente entre os corretores ativos e permanecem fixos na conta de quem recebeu, sem expirar ou passar para outro corretor.
               </span>
             </div>
           </div>
