@@ -1,10 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import { useToast } from '../contexts/ToastContext';
-import { FiClock, FiMessageCircle, FiPhone } from 'react-icons/fi';
-import ModalFechamentoVenda from '../components/ModalFechamentoVenda';
+import { useAuth } from '../contexts/AuthContext';
+import { FiClock, FiMessageCircle, FiPhone, FiUser, FiUsers, FiFilter } from 'react-icons/fi';
 
 const columns = [
   { id: 'novo', title: 'Novo' },
@@ -29,7 +24,10 @@ const originLabel = (origem) => {
 };
 
 const Kanban = () => {
+  const { user, isGestor } = useAuth();
   const [leads, setLeads] = useState([]);
+  const [corretores, setCorretores] = useState([]);
+  const [selectedCorretorId, setSelectedCorretorId] = useState('');
   const [loading, setLoading] = useState(true);
   const [showVendaModal, setShowVendaModal] = useState(false);
   const [activeLeadId, setActiveLeadId] = useState(null);
@@ -37,13 +35,22 @@ const Kanban = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchLeads();
+    fetchData();
   }, []);
 
-  const fetchLeads = async () => {
+  const fetchData = async () => {
     try {
-      const data = await api.leads.getLeads();
-      setLeads(Array.isArray(data) ? data : (data?.leads || []));
+      setLoading(true);
+      const [leadsData, usersData] = await Promise.all([
+        api.leads.getLeads(),
+        api.usuarios.getUsuarios().catch(() => [])
+      ]);
+      
+      const loadedLeads = Array.isArray(leadsData) ? leadsData : (leadsData?.leads || []);
+      setLeads(loadedLeads);
+
+      const activeUsers = (usersData || []).filter(u => u.ativo === 1);
+      setCorretores(activeUsers);
     } catch (err) {
       addToast(err.message || 'Erro ao carregar leads', 'error');
     } finally {
@@ -51,8 +58,15 @@ const Kanban = () => {
     }
   };
 
+  const fetchLeads = fetchData;
+
+  const filteredLeads = leads.filter(lead => {
+    if (!selectedCorretorId) return true;
+    return lead.corretor_id === selectedCorretorId;
+  });
+
   const getLeadsByEtapa = (etapa) => {
-    return leads.filter(lead => lead.etapa === etapa);
+    return filteredLeads.filter(lead => lead.etapa === etapa);
   };
 
   const onDragEnd = async (result) => {
@@ -107,10 +121,64 @@ const Kanban = () => {
 
   return (
     <div className="flex-col h-full">
-      <h1 className="font-heading" style={{ fontSize: '2rem', marginBottom: '1.5rem' }}>Kanban de Vendas</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '12px' }}>
+        <h1 className="font-heading" style={{ fontSize: '2rem', margin: 0 }}>Kanban de Vendas</h1>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Botão rápido: Meus Leads */}
+          <button
+            onClick={() => setSelectedCorretorId(user?.id || '')}
+            className="btn btn-sm"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              backgroundColor: selectedCorretorId === user?.id ? 'var(--color-primary, #00F5A0)' : 'var(--color-surface)',
+              color: selectedCorretorId === user?.id ? '#061912' : 'var(--color-text)',
+              fontWeight: 600, border: '1px solid var(--color-border)', borderRadius: '6px', padding: '6px 12px'
+            }}
+          >
+            <FiUser /> Meus Leads
+          </button>
+
+          {/* Botão rápido: Todos os Leads */}
+          <button
+            onClick={() => setSelectedCorretorId('')}
+            className="btn btn-sm"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              backgroundColor: selectedCorretorId === '' ? 'var(--color-primary, #00F5A0)' : 'var(--color-surface)',
+              color: selectedCorretorId === '' ? '#061912' : 'var(--color-text)',
+              fontWeight: 600, border: '1px solid var(--color-border)', borderRadius: '6px', padding: '6px 12px'
+            }}
+          >
+            <FiUsers /> Todos os Leads ({leads.length})
+          </button>
+
+          {/* Dropdown por corretor (para Gestores e Admins) */}
+          {(isGestor || user?.role === 'gestor') && corretores.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <select
+                value={selectedCorretorId}
+                onChange={(e) => setSelectedCorretorId(e.target.value)}
+                style={{
+                  padding: '6px 12px', borderRadius: '6px',
+                  backgroundColor: 'var(--color-surface)', color: 'var(--color-text)',
+                  border: '1px solid var(--color-border)', fontSize: '0.875rem', fontWeight: 500
+                }}
+              >
+                <option value="">-- Filtrar por Corretor --</option>
+                {corretores.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome} {c.id === user?.id ? '(Você)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
       
       <DragDropContext onDragEnd={onDragEnd}>
-        <div data-tour="kanban-board" style={{ display: 'flex', gap: '1rem', overflowX: 'auto', overflowY: 'hidden', paddingBottom: '1rem', height: 'calc(100vh - 120px)' }}>
+        <div data-tour="kanban-board" style={{ display: 'flex', gap: '1rem', overflowX: 'auto', overflowY: 'hidden', paddingBottom: '1rem', height: 'calc(100vh - 150px)' }}>
           {columns.map(col => {
             const colLeads = getLeadsByEtapa(col.id);
             return (

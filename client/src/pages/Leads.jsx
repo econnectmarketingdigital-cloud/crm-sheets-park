@@ -48,13 +48,15 @@ const formatDate = (dateStr) => {
 };
 
 export default function Leads() {
+  const { user, isGestor } = useAuth();
   const [searchParams] = useSearchParams();
   const [leads, setLeads] = useState([]);
+  const [corretores, setCorretores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [etapaFilter, setEtapaFilter] = useState(searchParams.get('etapa') || '');
   const [origemFilter, setOrigemFilter] = useState('');
-  const corretorId = searchParams.get('corretor_id');
+  const [corretorFilter, setCorretorFilter] = useState(searchParams.get('corretor_id') || '');
   const navigate = useNavigate();
   const { addToast } = useToast();
   
@@ -62,23 +64,27 @@ export default function Leads() {
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
   useEffect(() => {
-    fetchLeads();
-  }, [corretorId]);
+    fetchData();
+  }, []);
 
-  const fetchLeads = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const params = {};
-      if (corretorId) params.corretor_id = corretorId;
-      const data = await api.leads.getLeads(params);
+      const [data, usersData] = await Promise.all([
+        api.leads.getLeads(),
+        api.usuarios.getUsuarios().catch(() => [])
+      ]);
       setLeads(data || []);
-      setSelectedLeads([]); // clear selection on reload
+      setCorretores((usersData || []).filter(u => u.ativo === 1));
+      setSelectedLeads([]);
     } catch (err) {
       addToast(err.message || 'Erro ao carregar leads', 'error');
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchLeads = fetchData;
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = 
@@ -88,8 +94,9 @@ export default function Leads() {
     
     const matchesEtapa = etapaFilter ? lead.etapa === etapaFilter : true;
     const matchesOrigem = origemFilter ? lead.origem === origemFilter : true;
+    const matchesCorretor = corretorFilter ? lead.corretor_id === corretorFilter : true;
 
-    return matchesSearch && matchesEtapa && matchesOrigem;
+    return matchesSearch && matchesEtapa && matchesOrigem && matchesCorretor;
   });
 
   const handleSelectAll = (e) => {
@@ -185,6 +192,21 @@ export default function Leads() {
           <option value="google_ads">Google Ads</option>
           <option value="manual">Manual</option>
         </select>
+        {(isGestor || user?.role === 'gestor') && corretores.length > 0 && (
+          <select 
+            value={corretorFilter} 
+            onChange={(e) => setCorretorFilter(e.target.value)}
+            style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', fontWeight: 500 }}
+          >
+            <option value="">Todos os Corretores</option>
+            <option value={user?.id}>Meus Leads (Você)</option>
+            {corretores.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.nome} {c.id === user?.id ? '(Você)' : ''}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {selectedLeads.length > 0 && (
