@@ -1,5 +1,11 @@
+import React, { useState, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { FiClock, FiMessageCircle, FiPhone, FiUser, FiUsers, FiFilter } from 'react-icons/fi';
+import ModalFechamentoVenda from '../components/ModalFechamentoVenda';
 
 const columns = [
   { id: 'novo', title: 'Novo' },
