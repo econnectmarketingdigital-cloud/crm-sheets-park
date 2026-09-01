@@ -11,7 +11,7 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   const db = getDb();
   try {
-    const { etapa, origem, corretor_id, limit = 50, offset = 0 } = req.query;
+    const { etapa, origem, corretor_id, limit = 1000, offset = 0 } = req.query;
     let query = `
       SELECT l.*, e.nome as empreendimento_nome, u.nome as corretor_nome
       FROM leads l
@@ -33,7 +33,7 @@ router.get('/', authenticateToken, async (req, res) => {
     if (origem) { query += ' AND l.origem = ?'; params.push(origem); }
 
     query += ' ORDER BY l.created_at DESC LIMIT ? OFFSET ?';
-    params.push(limit, offset);
+    params.push(parseInt(limit, 10) || 1000, parseInt(offset, 10) || 0);
 
     const leads = await db.query(query, params);
     res.json({ success: true, data: leads });
