@@ -6,6 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { FiClock, FiMessageCircle, FiPhone, FiUser, FiUsers, FiFilter } from 'react-icons/fi';
 import ModalFechamentoVenda from '../components/ModalFechamentoVenda';
+import { getWhatsAppUrl } from '../lib/utils';
 
 const columns = [
   { id: 'novo', title: 'Novo' },
@@ -254,7 +255,7 @@ const Kanban = () => {
                                 </div>
                                 <div style={{ display: 'flex', gap: '4px' }}>
                                   {lead.telefone && (
-                                    <a href={`https://wa.me/55${lead.telefone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
+                                    <a href={getWhatsAppUrl(lead.telefone)} target="_blank" rel="noreferrer"
                                        onClick={e => e.stopPropagation()} 
                                        style={{ color: 'var(--color-success)', padding: '2px' }}>
                                       <FiMessageCircle size={14} />

@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { FiPhone, FiMail, FiMessageCircle, FiEdit3, FiInfo, FiClock, FiCheck, FiXCircle, FiArrowRight, FiTrash2, FiArrowLeft } from 'react-icons/fi';
 import ModalFechamentoVenda from '../components/ModalFechamentoVenda';
+import { getWhatsAppUrl } from '../lib/utils';
 
 const ETAPAS = ['novo', 'contato_feito', 'visita_agendada', 'proposta', 'documentacao', 'fechado'];
 
@@ -202,7 +203,7 @@ export default function LeadDetail() {
           
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {lead.telefone && (
-              <a href={`https://wa.me/55${getPhoneNumbers(lead.telefone)}`} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#25D366', color: '#fff', textDecoration: 'none', borderRadius: '8px' }}>
+              <a href={getWhatsAppUrl(lead.telefone)} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#25D366', color: '#fff', textDecoration: 'none', borderRadius: '8px' }}>
                 <FiMessageCircle /> WhatsApp ({lead.telefone})
               </a>
             )}
