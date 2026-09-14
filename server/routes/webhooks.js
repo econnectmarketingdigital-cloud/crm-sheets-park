@@ -10,6 +10,25 @@ const router = express.Router();
 // Meta Verification Token (configure em render ou use padrão)
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'sheetspark_meta_verify_2026';
 
+// Rota temporária para inscrever o app na Página do Meta para receber eventos de leadgen
+router.get('/subscribe-page', async (req, res) => {
+  const pageToken = process.env.META_PAGE_ACCESS_TOKEN;
+  const pageId = '861398503718706';
+  if (!pageToken) return res.status(500).json({ error: 'META_PAGE_ACCESS_TOKEN não configurado' });
+  try {
+    const response = await fetch(`https://graph.facebook.com/v20.0/${pageId}/subscribed_apps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscribed_fields: 'leadgen', access_token: pageToken })
+    });
+    const data = await response.json();
+    console.log('[Subscribe Page] Resposta:', data);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Meta Verification (GET)
 router.get('/meta', async (req, res) => {
   const mode = req.query['hub.mode'];
