@@ -12,18 +12,41 @@ const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'sheetspark_meta_verify_20
 
 // Rota temporária para inscrever o app na Página do Meta para receber eventos de leadgen
 router.get('/subscribe-page', async (req, res) => {
-  const pageToken = process.env.META_PAGE_ACCESS_TOKEN;
+  const systemUserToken = process.env.META_PAGE_ACCESS_TOKEN;
   const pageId = '861398503718706';
-  if (!pageToken) return res.status(500).json({ error: 'META_PAGE_ACCESS_TOKEN não configurado' });
+  if (!systemUserToken) return res.status(500).json({ error: 'META_PAGE_ACCESS_TOKEN não configurado' });
   try {
-    const response = await fetch(`https://graph.facebook.com/v20.0/${pageId}/subscribed_apps`, {
+    // Passo 1: Busca o Page Access Token usando o System User Token
+    const pageTokenRes = await fetch(`https://graph.facebook.com/v20.0/${pageId}?fields=access_token&access_token=${systemUserToken}`);
+    const pageTokenData = await pageTokenRes.json();
+    console.log('[Subscribe Page] Page token fetch:', pageTokenData);
+
+    if (pageTokenData.error) {
+      return res.status(400).json({ step: 'get_page_token', error: pageTokenData.error });
+    }
+
+    const pageToken = pageTokenData.access_token;
+    if (!pageToken) {
+      return res.status(400).json({ error: 'Não foi possível obter o Page Access Token. Verifique se o System User tem acesso à página.' });
+    }
+
+    // Passo 2: Inscreve o app na página usando o Page Access Token
+    const subscribeRes = await fetch(`https://graph.facebook.com/v20.0/${pageId}/subscribed_apps`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscribed_fields: 'leadgen', access_token: pageToken })
     });
-    const data = await response.json();
-    console.log('[Subscribe Page] Resposta:', data);
-    res.json(data);
+    const subscribeData = await subscribeRes.json();
+    console.log('[Subscribe Page] Inscrição:', subscribeData);
+
+    res.json({
+      success: subscribeData.success || false,
+      subscription_result: subscribeData,
+      page_access_token: pageToken,
+      message: subscribeData.success
+        ? '✅ App inscrito! Salve o page_access_token no Render como META_PAGE_ACCESS_TOKEN.'
+        : '❌ Falha na inscrição.'
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
