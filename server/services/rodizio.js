@@ -10,36 +10,46 @@ export const getNextCorretor = async (origem) => {
   const db = getDb();
   if (!(await isRodizioAtivo())) return null;
 
-  // Get active, available, not paused corretors
+  // Busca corretores ativos, disponíveis e não pausados com seus respectivos pesos
   const corretores = await db.query(`
-    SELECT id FROM usuarios 
+    SELECT id, nome, COALESCE(peso_rodizio, 1) as peso FROM usuarios 
     WHERE ativo = 1 AND disponivel_rodizio = 1 AND pausado_rodizio = 0
-    ORDER BY id
+    ORDER BY peso DESC, nome ASC
   `);
 
   if (corretores.length === 0) return null;
 
-  const estado = await db.queryOne('SELECT ultimo_corretor_id FROM rodizio_estado WHERE origem = ?', [origem]);
-  
-  let nextCorretor = null;
-
-  if (!estado || !estado.ultimo_corretor_id) {
-    nextCorretor = corretores[0];
-  } else {
-    const currentIndex = corretores.findIndex(c => c.id === estado.ultimo_corretor_id);
-    if (currentIndex === -1 || currentIndex === corretores.length - 1) {
-      nextCorretor = corretores[0];
-    } else {
-      nextCorretor = corretores[currentIndex + 1];
+  // Monta fila balanceada intercalando por peso
+  const maxPeso = Math.max(...corretores.map(c => c.peso));
+  const fila = [];
+  for (let round = 1; round <= maxPeso; round++) {
+    for (const c of corretores) {
+      if (c.peso >= round) {
+        fila.push(c);
+      }
     }
   }
 
-  // Update pointer
+  if (fila.length === 0) return null;
+
+  const estado = await db.queryOne('SELECT posicao, ultimo_corretor_id FROM rodizio_estado WHERE origem = ?', [origem]);
+
+  let nextIndex = 0;
+  if (estado && estado.posicao !== undefined && estado.posicao !== null) {
+    nextIndex = (estado.posicao + 1) % fila.length;
+  }
+
+  const nextCorretor = fila[nextIndex];
+
+  // Atualiza ponteiro da posição e último corretor
   await db.execute(`
-    INSERT INTO rodizio_estado (id, origem, ultimo_corretor_id, updated_at) 
-    VALUES (gen_random_uuid(), ?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(origem) DO UPDATE SET ultimo_corretor_id = ?, updated_at = CURRENT_TIMESTAMP
-  `, [origem, nextCorretor.id, nextCorretor.id]);
+    INSERT INTO rodizio_estado (id, origem, ultimo_corretor_id, posicao, updated_at) 
+    VALUES (gen_random_uuid(), ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(origem) DO UPDATE SET 
+      ultimo_corretor_id = EXCLUDED.ultimo_corretor_id,
+      posicao = EXCLUDED.posicao,
+      updated_at = CURRENT_TIMESTAMP
+  `, [origem, nextCorretor.id, nextIndex]);
 
   return nextCorretor.id;
 };
