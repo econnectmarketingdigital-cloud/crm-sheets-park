@@ -3,7 +3,7 @@ import { getDb } from '../database.js';
 export const isRodizioAtivo = async () => {
   const db = getDb();
   const config = await db.queryOne("SELECT valor FROM configuracoes WHERE chave = 'rodizio_ativo'");
-  return config && config.valor === 'true';
+  return config && (config.valor === 'true' || config.valor === '1');
 };
 
 export const getNextCorretor = async (origem) => {
