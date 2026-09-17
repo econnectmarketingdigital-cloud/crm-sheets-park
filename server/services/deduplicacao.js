@@ -11,17 +11,24 @@ export const normalizePhone = (phone) => {
 
 export const findExistingLead = async (telefone, email) => {
   const db = getDb();
-  const normPhone = normalizePhone(telefone);
   
-  if (normPhone) {
-    const leadByPhone = await db.queryOne('SELECT * FROM leads WHERE telefone = ?', [normPhone]);
-    if (leadByPhone) return leadByPhone;
+  if (telefone) {
+    const digits = telefone.toString().replace(/\D/g, '');
+    const last8 = digits.slice(-8);
+    if (last8.length >= 8) {
+      const leadByPhone = await db.queryOne(`
+        SELECT * FROM leads 
+        WHERE RIGHT(REGEXP_REPLACE(telefone, '\\D', '', 'g'), 8) = $1
+        LIMIT 1
+      `, [last8]);
+      if (leadByPhone) return leadByPhone;
+    }
   }
-  
-  if (email && email.trim() !== '') {
-    const leadByEmail = await db.queryOne('SELECT * FROM leads WHERE email = ?', [email.trim()]);
+
+  if (email && email.toString().trim() !== '') {
+    const leadByEmail = await db.queryOne('SELECT * FROM leads WHERE LOWER(email) = LOWER($1) LIMIT 1', [email.toString().trim()]);
     if (leadByEmail) return leadByEmail;
   }
-  
+
   return null;
 };
