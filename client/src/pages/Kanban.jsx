@@ -73,7 +73,13 @@ const Kanban = () => {
   });
 
   const getLeadsByEtapa = (etapa) => {
-    return filteredLeads.filter(lead => lead.etapa === etapa);
+    return filteredLeads
+      .filter(lead => lead.etapa === etapa)
+      .sort((a, b) => {
+        const timeA = new Date(a.reengajado_em || a.created_at).getTime();
+        const timeB = new Date(b.reengajado_em || b.created_at).getTime();
+        return timeB - timeA;
+      });
   };
 
   const onDragEnd = async (result) => {
@@ -226,6 +232,8 @@ const Kanban = () => {
                                 marginBottom: '0.5rem',
                                 padding: '0.75rem',
                                 cursor: 'pointer',
+                                border: lead.reengajado ? '1px solid rgba(255, 87, 34, 0.45)' : undefined,
+                                boxShadow: lead.reengajado ? '0 0 10px rgba(255, 87, 34, 0.15)' : undefined,
                               }}
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
@@ -268,9 +276,9 @@ const Kanban = () => {
                               </div>
                               
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: 'var(--color-text-tertiary)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: lead.reengajado ? '#ff7043' : 'var(--color-text-tertiary)' }}>
                                   <FiClock size={12} />
-                                  <span>{formatTimeSince(lead.ultimo_contato || lead.created_at)}</span>
+                                  <span>{formatTimeSince(lead.reengajado_em || lead.ultimo_contato || lead.created_at)}</span>
                                 </div>
                                 <div style={{ display: 'flex', gap: '4px' }}>
                                   {lead.telefone && (

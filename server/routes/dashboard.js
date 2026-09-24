@@ -19,7 +19,7 @@ router.get('/corretor', authenticateToken, async (req, res) => {
 
     const leads = await db.query('SELECT etapa, COUNT(*) as count FROM leads WHERE corretor_id = ? GROUP BY etapa', [corretor_id]);
     
-    const recentLeads = await db.query('SELECT id, nome, etapa, created_at FROM leads WHERE corretor_id = ? ORDER BY created_at DESC LIMIT 5', [corretor_id]);
+    const recentLeads = await db.query('SELECT id, nome, etapa, created_at, reengajado, reengajado_em FROM leads WHERE corretor_id = ? ORDER BY COALESCE(reengajado_em, created_at) DESC LIMIT 5', [corretor_id]);
 
     const allVgv = await db.query(`
       SELECT u.nome, u.avatar_url, p.corretor_id, SUM(p.valor_venda) as vgv FROM propostas p
@@ -113,11 +113,11 @@ router.get('/corretor/:id/performance', authenticateToken, requireRole('gestor')
     `, [corretorId]);
 
     const leadsRecentes = await db.query(`
-      SELECT l.id, l.nome, l.etapa, l.created_at, e.nome as empreendimento_nome
+      SELECT l.id, l.nome, l.etapa, l.created_at, l.reengajado, l.reengajado_em, e.nome as empreendimento_nome
       FROM leads l
       LEFT JOIN empreendimentos e ON l.empreendimento_interesse_id = e.id
       WHERE l.corretor_id = ?
-      ORDER BY l.created_at DESC LIMIT 10
+      ORDER BY COALESCE(l.reengajado_em, l.created_at) DESC LIMIT 10
     `, [corretorId]);
 
     const fechados = await db.queryOne("SELECT COUNT(*) as total FROM leads WHERE corretor_id = ? AND etapa = 'fechado'", [corretorId]);

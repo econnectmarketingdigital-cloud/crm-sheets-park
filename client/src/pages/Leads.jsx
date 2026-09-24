@@ -87,18 +87,24 @@ export default function Leads() {
 
   const fetchLeads = fetchData;
 
-  const filteredLeads = leads.filter(lead => {
-    const matchesSearch = 
-      (lead.nome?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (lead.telefone || '').includes(searchTerm) ||
-      (lead.email?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-    
-    const matchesEtapa = etapaFilter ? lead.etapa === etapaFilter : true;
-    const matchesOrigem = origemFilter ? lead.origem === origemFilter : true;
-    const matchesCorretor = corretorFilter ? lead.corretor_id === corretorFilter : true;
+  const filteredLeads = leads
+    .filter(lead => {
+      const matchesSearch = 
+        (lead.nome?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (lead.telefone || '').includes(searchTerm) ||
+        (lead.email?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      
+      const matchesEtapa = etapaFilter ? lead.etapa === etapaFilter : true;
+      const matchesOrigem = origemFilter ? lead.origem === origemFilter : true;
+      const matchesCorretor = corretorFilter ? lead.corretor_id === corretorFilter : true;
 
-    return matchesSearch && matchesEtapa && matchesOrigem && matchesCorretor;
-  });
+      return matchesSearch && matchesEtapa && matchesOrigem && matchesCorretor;
+    })
+    .sort((a, b) => {
+      const timeA = new Date(a.reengajado_em || a.created_at).getTime();
+      const timeB = new Date(b.reengajado_em || b.created_at).getTime();
+      return timeB - timeA;
+    });
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {

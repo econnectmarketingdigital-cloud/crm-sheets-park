@@ -32,7 +32,7 @@ router.get('/', authenticateToken, async (req, res) => {
     if (etapa) { query += ' AND l.etapa = ?'; params.push(etapa); }
     if (origem) { query += ' AND l.origem = ?'; params.push(origem); }
 
-    query += ' ORDER BY l.created_at DESC LIMIT ? OFFSET ?';
+    query += ' ORDER BY COALESCE(l.reengajado_em, l.created_at) DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit, 10) || 1000, parseInt(offset, 10) || 0);
 
     const leads = await db.query(query, params);
