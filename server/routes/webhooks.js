@@ -2,7 +2,7 @@ import express from 'express';
 import { getDb } from '../database.js';
 import { findExistingLead } from '../services/deduplicacao.js';
 import { getNextCorretor } from '../services/rodizio.js';
-import { notifyCorretorNewLead } from '../services/notification.js';
+import { notifyCorretorNewLead, notifyCorretorReengajamento } from '../services/notification.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
@@ -75,7 +75,33 @@ const handleIncomingLead = async (leadData) => {
   try {
     const existing = await findExistingLead(telefone, email);
     if (existing) {
-      console.log(`[Webhook] Lead duplicado descartado: ${telefone || email}`);
+      console.log(`[Webhook] 🔥 Lead reengajado detectado: ${existing.nome} (${existing.telefone})`);
+      
+      const novasObs = observacoes || '';
+      const dataHora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+      const historicoMsg = `🔥 [RE-ENGAJAMENTO] O lead preencheu o formulário novamente em ${dataHora}. ${novasObs ? `Dados preenchidos: ${novasObs}` : ''}`;
+      
+      const obsAtualizada = existing.observacoes 
+        ? `${existing.observacoes}\n\n[Reengajamento em ${dataHora}]:\n${novasObs}`
+        : `[Reengajamento em ${dataHora}]:\n${novasObs}`;
+
+      await db.execute(`
+        UPDATE leads 
+        SET reengajado = true,
+            reengajado_em = CURRENT_TIMESTAMP,
+            vezes_convertido = COALESCE(vezes_convertido, 1) + 1,
+            observacoes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [obsAtualizada, existing.id]);
+
+      await db.execute(`
+        INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao)
+        VALUES (?, ?, ?, 'reengajamento', ?)
+      `, [uuidv4(), existing.id, existing.corretor_id, historicoMsg]);
+
+      // Dispara alerta imediato de reengajamento para o corretor que cuida do lead
+      notifyCorretorReengajamento(existing.id, novasObs).catch(err => console.error('[Webhook] Erro ao notificar reengajamento:', err));
       return;
     }
     

@@ -271,7 +271,25 @@ export default function Leads() {
                         style={{ cursor: 'pointer' }}
                       />
                     </td>
-                    <td style={{ fontWeight: '500' }}>{lead.nome}</td>
+                    <td style={{ fontWeight: '500' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>{lead.nome}</span>
+                        {lead.reengajado && (
+                          <span style={{ 
+                            backgroundColor: 'rgba(255, 87, 34, 0.15)', 
+                            color: '#ff5722', 
+                            border: '1px solid rgba(255, 87, 34, 0.4)', 
+                            fontSize: '0.65rem', 
+                            fontWeight: 700, 
+                            padding: '1px 6px', 
+                            borderRadius: '4px',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            🔥 Preencheu de novo
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td>{lead.telefone}</td>
                     <td>
                       <span style={{ 

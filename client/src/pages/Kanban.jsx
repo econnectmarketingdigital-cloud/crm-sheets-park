@@ -229,7 +229,26 @@ const Kanban = () => {
                               }}
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                                <h4 style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text)', margin: 0 }}>{lead.nome}</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  <h4 style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text)', margin: 0 }}>{lead.nome}</h4>
+                                  {lead.reengajado && (
+                                    <span style={{ 
+                                      alignSelf: 'flex-start',
+                                      backgroundColor: 'rgba(255, 87, 34, 0.15)', 
+                                      color: '#ff5722', 
+                                      border: '1px solid rgba(255, 87, 34, 0.4)', 
+                                      fontSize: '0.65rem', 
+                                      fontWeight: 700, 
+                                      padding: '1px 6px', 
+                                      borderRadius: '4px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px'
+                                    }}>
+                                      🔥 Preencheu de novo
+                                    </span>
+                                  )}
+                                </div>
                                 <span className={`badge ${originBadgeClass(lead.origem)}`} style={{ fontSize: '0.7rem' }}>
                                   {originLabel(lead.origem)}
                                 </span>
