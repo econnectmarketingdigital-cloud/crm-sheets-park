@@ -29,6 +29,7 @@ async function startServer() {
   const { default: metasRoutes } = await import('./routes/metas.js');
   const { default: usuariosRoutes } = await import('./routes/usuarios.js');
   const { default: uploadRoutes } = await import('./routes/upload.js');
+  const { default: pushRoutes } = await import('./routes/push.js');
 
   // Mount routes
   app.use('/api/auth', authRoutes);
@@ -41,6 +42,7 @@ async function startServer() {
   app.use('/api/metas', metasRoutes);
   app.use('/api/usuarios', usuariosRoutes);
   app.use('/api/upload', uploadRoutes);
+  app.use('/api/push', pushRoutes);
   app.use('/api', empreendimentosRoutes);
 
   const PORT = process.env.PORT || 3001;

@@ -4,6 +4,7 @@ import { HiHome, HiViewBoards, HiUserGroup, HiOfficeBuilding, HiCog, HiLogout, H
 import { FiRefreshCw, FiHelpCircle, FiAward, FiUser } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import OnboardingTour from './OnboardingTour';
+import PushNotificationManager from './PushNotificationManager';
 import api from '../services/api';
 
 const Layout = () => {
@@ -183,6 +184,9 @@ const Layout = () => {
       <main className="main-content">
         <Outlet />
       </main>
+
+      {/* Alerta de Ativação de Notificações Push Mobile */}
+      <PushNotificationManager mode="banner" />
 
       {/* Mobile Bottom Nav */}
       <nav className="bottom-nav">

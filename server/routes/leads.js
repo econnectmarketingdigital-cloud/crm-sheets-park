@@ -4,6 +4,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { findExistingLead } from '../services/deduplicacao.js';
 import { getNextCorretor } from '../services/rodizio.js';
 import { notifyCorretorNewLead } from '../services/notification.js';
+import { sendPushToUser } from '../services/webpush.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
@@ -145,6 +146,16 @@ router.put('/:id/corretor', authenticateToken, async (req, res) => {
       INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) 
       VALUES (?, ?, ?, 'sistema', ?)
     `, [uuidv4(), req.params.id, req.user.id, `Lead transferido manualmente para ${nomeNovoCorretor} por ${req.user.nome}.`]);
+
+    if (corretor_id && corretor_id !== req.user.id) {
+      sendPushToUser(corretor_id, {
+        title: '📋 Lead Transferido para Você!',
+        body: `${req.user.nome} transferiu o lead ${lead.nome || 'de cliente'} para você.`,
+        icon: '/logo_icon.png',
+        badge: '/logo_icon.png',
+        data: { url: `/leads/${req.params.id}` }
+      }).catch(err => console.error('[Push Transferência]:', err));
+    }
 
     res.json({ success: true, data: 'Corretor atualizado com sucesso' });
   } catch (error) {

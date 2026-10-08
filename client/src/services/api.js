@@ -105,4 +105,10 @@ export default {
   webhooks: {
     simulateWebhook: (data) => fetchWithAuth('/webhooks/simulate', { method: 'POST', body: JSON.stringify(data) }),
   },
+  push: {
+    getPublicKey: () => fetchWithAuth('/push/public-key'),
+    subscribe: (subscription) => fetchWithAuth('/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription }) }),
+    unsubscribe: (endpoint) => fetchWithAuth('/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+    testPush: () => fetchWithAuth('/push/test', { method: 'POST' }),
+  },
 };

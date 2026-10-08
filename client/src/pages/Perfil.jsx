@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../services/api';
+import PushNotificationManager from '../components/PushNotificationManager';
 import { FiImage, FiUpload, FiCheck, FiMove, FiSave, FiUser, FiCamera, FiTrash2 } from 'react-icons/fi';
 
 const Perfil = () => {
@@ -281,7 +282,10 @@ const Perfil = () => {
         </div>
       </div>
 
-      {/* 2. SEÇÃO DE PAPEL DE PAREDE (WALLPAPER) */}
+      {/* 2. SEÇÃO DE NOTIFICAÇÕES NO CELULAR (PUSH) */}
+      <PushNotificationManager mode="widget" />
+
+      {/* 3. SEÇÃO DE PAPEL DE PAREDE (WALLPAPER) */}
       <div className="card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.12)', color: '#38BDF8', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>

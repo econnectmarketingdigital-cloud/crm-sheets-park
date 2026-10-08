@@ -3,6 +3,7 @@ import { getDb } from '../database.js';
 import { findExistingLead } from '../services/deduplicacao.js';
 import { getNextCorretor } from '../services/rodizio.js';
 import { notifyCorretorNewLead, notifyCorretorReengajamento } from '../services/notification.js';
+import { sendPushToUser } from '../services/webpush.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
@@ -102,6 +103,16 @@ const handleIncomingLead = async (leadData) => {
 
       // Dispara alerta imediato de reengajamento para o corretor que cuida do lead
       notifyCorretorReengajamento(existing.id, novasObs).catch(err => console.error('[Webhook] Erro ao notificar reengajamento:', err));
+
+      if (existing.corretor_id) {
+        sendPushToUser(existing.corretor_id, {
+          title: '⚡ Seu Lead Preencheu Novamente!',
+          body: `🔥 ${existing.nome} preencheu o formulário novamente! Toque para ver os dados.`,
+          icon: '/logo_icon.png',
+          badge: '/logo_icon.png',
+          data: { url: `/leads/${existing.id}` }
+        }).catch(err => console.error('[Webhook] Erro no Push Reengajamento:', err));
+      }
       return;
     }
     
@@ -141,6 +152,16 @@ const handleIncomingLead = async (leadData) => {
 
     // Dispara notificação por e-mail para o corretor atribuído
     notifyCorretorNewLead(id).catch(err => console.error('[Webhook] Erro ao notificar corretor:', err));
+
+    if (corretorId) {
+      sendPushToUser(corretorId, {
+        title: '🔥 Novo Lead Atribuído!',
+        body: `${nome} acabou de entrar no CRM! Toque para atender.`,
+        icon: '/logo_icon.png',
+        badge: '/logo_icon.png',
+        data: { url: `/leads/${id}` }
+      }).catch(err => console.error('[Webhook] Erro no Push Novo Lead:', err));
+    }
       
   } catch (e) {
     console.error('[Webhook] Erro no processamento do lead:', e);
