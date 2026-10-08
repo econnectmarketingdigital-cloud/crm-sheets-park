@@ -122,33 +122,33 @@ const GestorDashboard = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', position: 'relative', zIndex: 1 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', position: 'relative', zIndex: 1, maxWidth: '1200px', margin: '0 auto' }}>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h1 className="font-heading" style={{ fontSize: '2.5rem', margin: 0, fontWeight: 800, letterSpacing: '-0.5px' }}>
+          <h1 className="font-heading" style={{ fontSize: 'clamp(1.5rem, 6vw, 2.3rem)', margin: 0, fontWeight: 800, letterSpacing: '-0.5px' }}>
             Visão Geral <span style={{ color: 'transparent', backgroundImage: 'linear-gradient(90deg, #00F5A0, #0EA5E9)', WebkitBackgroundClip: 'text' }}>Gestão</span>
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', margin: '0.5rem 0 0 0', fontSize: '1rem' }}>Acompanhamento de performance e VGV de loteamentos da equipe.</p>
+          <p style={{ color: 'var(--color-text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>Acompanhamento de performance e VGV de loteamentos da equipe.</p>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1rem' }}>
         
         {/* VGV Total Card with Progress visual */}
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ backgroundColor: 'rgba(0, 245, 160, 0.12)', color: '#00F5A0', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(0, 245, 160, 0.25)' }}>
-              <FiTrendingUp size={22} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+            <div style={{ backgroundColor: 'rgba(0, 245, 160, 0.12)', color: '#00F5A0', padding: '0.6rem', borderRadius: '12px', border: '1px solid rgba(0, 245, 160, 0.25)' }}>
+              <FiTrendingUp size={20} />
             </div>
-            <h3 className="font-heading" style={{ color: 'var(--color-text)', margin: 0, fontSize: '1.2rem' }}>VGV Total da Equipe</h3>
+            <h3 className="font-heading" style={{ color: 'var(--color-text)', margin: 0, fontSize: '1.1rem' }}>VGV Total da Equipe</h3>
           </div>
           
-          <div style={{ fontSize: '2.8rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1, marginBottom: '1.5rem', letterSpacing: '-1px' }}>
+          <div style={{ fontSize: 'clamp(2rem, 7vw, 2.8rem)', fontWeight: 800, color: '#FFFFFF', lineHeight: 1, marginBottom: '1.25rem', letterSpacing: '-1px' }}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vgvTotal)}
           </div>
           
-          <div style={{ fontSize: '0.85rem', color: '#00F5A0', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
+          <div style={{ fontSize: '0.8rem', color: '#00F5A0', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
             <FiTrendingUp /> +32% em relação ao mês passado (Simulado)
           </div>
         </div>

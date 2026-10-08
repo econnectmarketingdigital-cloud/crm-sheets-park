@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { HiHome, HiViewBoards, HiUserGroup, HiOfficeBuilding, HiCog, HiLogout, HiPlus } from 'react-icons/hi';
-import { FiRefreshCw, FiHelpCircle, FiAward, FiUser } from 'react-icons/fi';
+import { FiRefreshCw, FiHelpCircle, FiAward, FiUser, FiBell } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import OnboardingTour from './OnboardingTour';
 import PushNotificationManager from './PushNotificationManager';
@@ -9,6 +9,7 @@ import api from '../services/api';
 
 const Layout = () => {
   const { user, isGestor, logout } = useAuth();
+  const navigate = useNavigate();
   
   const [isOnline, setIsOnline] = useState(user?.pausado_rodizio === 0);
   const [showTour, setShowTour] = useState(false);
@@ -66,6 +67,83 @@ const Layout = () => {
       {user?.wallpaper_url && <div style={{position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(8, 9, 10, 0.8)", zIndex: 0, pointerEvents: "none"}}></div>}
       {/* Onboarding Tour Component */}
       <OnboardingTour isOpen={showTour} onClose={() => setShowTour(false)} />
+
+      {/* Mobile Top Header */}
+      <header className="mobile-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => navigate('/')}>
+          <img 
+            src="/logo_icon.png?v=6" 
+            alt="Sheets Park" 
+            style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(0,245,160,0.4)' }} 
+          />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>Sheets Park</span>
+            <span style={{ fontSize: '0.6rem', color: '#00F5A0', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 700 }}>CRM</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Status Rodízio Toggle */}
+          <button
+            onClick={handleToggleOnline}
+            style={{
+              background: isOnline ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+              border: `1px solid ${isOnline ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+              borderRadius: '20px',
+              padding: '3px 8px',
+              color: isOnline ? '#10b981' : '#ef4444',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isOnline ? '#10b981' : '#ef4444' }} />
+            {isOnline ? 'Online' : 'Offline'}
+          </button>
+
+          {/* Botão de Notificação Push com sino */}
+          <PushNotificationManager mode="bell" />
+
+          {/* Atalho Rápido: Novo Lead */}
+          <button 
+            onClick={() => navigate('/leads/novo')}
+            style={{
+              background: 'linear-gradient(135deg, #00F5A0, #00D284)',
+              color: '#061912',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              border: 'none',
+              cursor: 'pointer'
+            }}
+            title="Novo Lead"
+          >
+            <HiPlus size={18} />
+          </button>
+
+          {/* Avatar / Link Perfil */}
+          <div onClick={() => navigate('/perfil')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            {user?.avatar_url ? (
+              <img 
+                src={user.avatar_url} 
+                alt={user.nome} 
+                style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #00F5A0' }} 
+              />
+            ) : (
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(0, 245, 160, 0.2)', color: '#00F5A0', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', border: '1px solid rgba(0, 245, 160, 0.4)' }}>
+                {user?.nome?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
 
       {/* Desktop Sidebar */}
       <aside className="sidebar">
@@ -191,24 +269,24 @@ const Layout = () => {
       {/* Mobile Bottom Nav */}
       <nav className="bottom-nav">
         <NavLink to="/" className="nav-item">
-          <HiHome size={24} />
+          <HiHome size={22} />
           <span>Início</span>
         </NavLink>
         <NavLink to="/kanban" className="nav-item">
-          <HiViewBoards size={24} />
+          <HiViewBoards size={22} />
           <span>Kanban</span>
         </NavLink>
-        <NavLink to="/leads/novo" className="nav-item" style={{ color: 'var(--color-primary)' }}>
-          <HiPlus size={32} />
-          <span>Novo Lead</span>
-        </NavLink>
         <NavLink to="/leads" className="nav-item">
-          <HiUserGroup size={24} />
+          <HiUserGroup size={22} />
           <span>Leads</span>
         </NavLink>
         <NavLink to="/empreendimentos" className="nav-item">
-          <HiOfficeBuilding size={24} />
+          <HiOfficeBuilding size={22} />
           <span>Imóveis</span>
+        </NavLink>
+        <NavLink to="/perfil" className="nav-item">
+          <FiUser size={22} />
+          <span>Perfil</span>
         </NavLink>
       </nav>
     </div>

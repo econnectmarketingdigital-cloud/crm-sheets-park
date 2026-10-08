@@ -148,9 +148,9 @@ export default function Leads() {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-        <h1 style={{ margin: 0, color: 'var(--color-text)' }}>Leads</h1>
+    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+        <h1 style={{ margin: 0, color: 'var(--color-text)', fontSize: 'clamp(1.5rem, 5vw, 2rem)' }}>Leads</h1>
         <button 
           onClick={() => navigate('/leads/novo')}
           style={{

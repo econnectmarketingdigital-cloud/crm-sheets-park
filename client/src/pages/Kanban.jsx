@@ -134,8 +134,8 @@ const Kanban = () => {
 
   return (
     <div className="flex-col h-full">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '12px' }}>
-        <h1 className="font-heading" style={{ fontSize: '2rem', margin: 0 }}>Kanban de Vendas</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
+        <h1 className="font-heading" style={{ fontSize: 'clamp(1.4rem, 5vw, 2rem)', margin: 0 }}>Kanban de Vendas</h1>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {/* Botão rápido: Meus Leads */}

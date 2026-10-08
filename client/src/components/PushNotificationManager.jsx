@@ -78,6 +78,45 @@ export default function PushNotificationManager({ mode = 'banner' }) {
 
   if (!supported) return null;
 
+  // Modo Bell Icon (para a barra superior mobile e header)
+  if (mode === 'bell') {
+    return (
+      <button
+        onClick={isSubscribed ? handleTest : handleSubscribe}
+        disabled={loading}
+        title={isSubscribed ? 'Notificações ativas! Toque para testar som' : 'Toque para ativar notificações no celular'}
+        style={{
+          background: isSubscribed ? 'rgba(0, 245, 160, 0.15)' : 'rgba(255, 87, 34, 0.18)',
+          border: `1px solid ${isSubscribed ? 'rgba(0, 245, 160, 0.4)' : 'rgba(255, 87, 34, 0.5)'}`,
+          color: isSubscribed ? '#00F5A0' : '#ff5722',
+          width: '32px',
+          height: '32px',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          position: 'relative',
+          padding: 0
+        }}
+      >
+        <FiBell size={16} />
+        {!isSubscribed && (
+          <span style={{
+            position: 'absolute',
+            top: '-2px',
+            right: '-2px',
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: '#ff5722',
+            border: '2px solid #08090A'
+          }} />
+        )}
+      </button>
+    );
+  }
+
   // Modo Widget / Botão (usado dentro do Perfil ou Barra de Configurações)
   if (mode === 'widget') {
     return (

@@ -38,20 +38,20 @@ export default function Empreendimentos() {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '1.5rem' }}>
         <div>
-          <h1 className="font-heading" style={{ fontSize: '2rem', margin: 0, fontWeight: 800 }}>Loteamentos & Empreendimentos</h1>
-          <p style={{ color: 'var(--color-text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>Gestão de quadras, lotes e disponibilidades</p>
+          <h1 className="font-heading" style={{ fontSize: 'clamp(1.4rem, 5vw, 2rem)', margin: 0, fontWeight: 800 }}>Loteamentos & Empreendimentos</h1>
+          <p style={{ color: 'var(--color-text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>Gestão de quadras, lotes e disponibilidades</p>
         </div>
         {user?.role === 'gestor' && (
-          <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
             <FiPlus /> Novo Loteamento
           </button>
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '1.25rem' }}>
         {empreendimentos.map((emp) => {
           const isBeiraRio = emp.nome?.toLowerCase().includes('beira-rio') || emp.tipo?.toLowerCase().includes('beira');
           const isComercial = emp.nome?.toLowerCase().includes('comercial') || emp.tipo?.toLowerCase().includes('comercial');
@@ -65,7 +65,7 @@ export default function Empreendimentos() {
               key={emp.id}
               onClick={() => navigate(`/empreendimentos/${emp.id}`)}
               className="card"
-              style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', padding: '1.75rem' }}
+              style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', padding: '1.25rem' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                 <div>

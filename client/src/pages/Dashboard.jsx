@@ -47,7 +47,7 @@ const Dashboard = () => {
   const vgvPercent = meta > 0 ? Math.min((vgvTotal / meta) * 100, 100) : 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', position: 'relative', zIndex: 1 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', position: 'relative', zIndex: 1, maxWidth: '1200px', margin: '0 auto' }}>
       
       {/* Background Dots Texture */}
       <div style={{
@@ -55,12 +55,12 @@ const Dashboard = () => {
         backgroundImage: 'radial-gradient(rgba(0,245,160,0.1) 1px, transparent 1px)', backgroundSize: '30px 30px', opacity: 0.6
       }} />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h1 className="font-heading" style={{ fontSize: '2.5rem', margin: 0, fontWeight: 800, letterSpacing: '-0.5px' }}>
+          <h1 className="font-heading" style={{ fontSize: 'clamp(1.5rem, 6vw, 2.3rem)', margin: 0, fontWeight: 800, letterSpacing: '-0.5px' }}>
             Olá, <span style={{ color: 'transparent', backgroundImage: 'linear-gradient(90deg, #00F5A0, #0EA5E9)', WebkitBackgroundClip: 'text' }}>{user?.nome?.split(' ')[0] || 'Corretor'}</span>
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', margin: '0.5rem 0 0 0', fontSize: '1rem' }}>Aqui está o resumo da sua performance.</p>
+          <p style={{ color: 'var(--color-text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>Aqui está o resumo da sua performance.</p>
         </div>
       </div>
       
@@ -116,18 +116,18 @@ const Dashboard = () => {
         @keyframes shimmer-progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
       `}</style>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1rem' }}>
         
         {/* VGV Meta */}
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ backgroundColor: 'rgba(0,245,160,0.12)', color: '#00F5A0', padding: '0.75rem', borderRadius: '12px', border: '1px solid rgba(0,245,160,0.25)' }}>
-              <FiTrendingUp size={22} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+            <div style={{ backgroundColor: 'rgba(0,245,160,0.12)', color: '#00F5A0', padding: '0.6rem', borderRadius: '12px', border: '1px solid rgba(0,245,160,0.25)' }}>
+              <FiTrendingUp size={20} />
             </div>
-            <h3 className="font-heading" style={{ color: 'var(--color-text)', margin: 0, fontSize: '1.2rem' }}>Avanço da Meta</h3>
+            <h3 className="font-heading" style={{ color: 'var(--color-text)', margin: 0, fontSize: '1.1rem' }}>Avanço da Meta</h3>
           </div>
           
-          <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1, marginBottom: '1.5rem', letterSpacing: '-1px' }}>
+          <div style={{ fontSize: 'clamp(2rem, 7vw, 2.5rem)', fontWeight: 800, color: '#FFFFFF', lineHeight: 1, marginBottom: '1.25rem', letterSpacing: '-1px' }}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(vgvTotal)}
           </div>
 

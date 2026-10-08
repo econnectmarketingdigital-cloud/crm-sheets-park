@@ -59,15 +59,15 @@ const Ranking = () => {
         background: 'radial-gradient(ellipse at top, rgba(0, 245, 160, 0.12) 0%, transparent 70%)', filter: 'blur(50px)'
       }} />
 
-      <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', backgroundColor: 'rgba(0, 245, 160, 0.1)', color: '#00F5A0', padding: '0.5rem 1.2rem', borderRadius: '50px', border: '1px solid rgba(0, 245, 160, 0.25)', marginBottom: '1rem' }}>
-          <FiAward size={18} />
-          <span style={{ fontWeight: 700, fontSize: '0.85rem', letterSpacing: '1px', textTransform: 'uppercase' }}>Top Performers</span>
+      <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', backgroundColor: 'rgba(0, 245, 160, 0.1)', color: '#00F5A0', padding: '0.4rem 1rem', borderRadius: '50px', border: '1px solid rgba(0, 245, 160, 0.25)', marginBottom: '0.75rem' }}>
+          <FiAward size={16} />
+          <span style={{ fontWeight: 700, fontSize: '0.75rem', letterSpacing: '1px', textTransform: 'uppercase' }}>Top Performers</span>
         </div>
-        <h1 className="font-heading" style={{ fontSize: '3rem', margin: 0, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-1px' }}>
+        <h1 className="font-heading" style={{ fontSize: 'clamp(1.8rem, 7vw, 3rem)', margin: 0, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-1px' }}>
           Ranking <span style={{ color: 'transparent', backgroundImage: 'linear-gradient(90deg, #00F5A0, #0EA5E9)', WebkitBackgroundClip: 'text' }}>Global</span>
         </h1>
-        <p style={{ color: 'var(--color-text-secondary)', marginTop: '0.5rem', fontSize: '1.1rem' }}>A corrida pelo topo de vendas de lotes deste mês.</p>
+        <p style={{ color: 'var(--color-text-secondary)', marginTop: '0.25rem', fontSize: '0.9rem' }}>A corrida pelo topo de vendas de lotes deste mês.</p>
       </div>
 
       <style>{`
@@ -76,8 +76,17 @@ const Ranking = () => {
           justify-content: center;
           align-items: flex-end;
           gap: 1.5rem;
-          margin-top: 2rem;
+          margin-top: 1.5rem;
           height: 360px;
+        }
+        @media (max-width: 600px) {
+          .podium-container {
+            gap: 6px;
+            height: 290px;
+          }
+          .podium-item {
+            width: 105px !important;
+          }
         }
         .podium-item {
           display: flex;

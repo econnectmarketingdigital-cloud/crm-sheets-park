@@ -156,12 +156,12 @@ const Perfil = () => {
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '850px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div style={{ maxWidth: '850px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       
       <div>
-        <h1 className="font-heading" style={{ fontSize: '2.2rem', margin: 0, fontWeight: 800, color: '#FFFFFF' }}>Meu Perfil</h1>
-        <p style={{ color: 'var(--color-text-secondary)', margin: '0.5rem 0 0 0', fontSize: '1rem' }}>
-          Personalize sua foto de perfil para o ranking e escolha o papel de parede do seu painel.
+        <h1 className="font-heading" style={{ fontSize: 'clamp(1.5rem, 6vw, 2.2rem)', margin: 0, fontWeight: 800, color: '#FFFFFF' }}>Meu Perfil</h1>
+        <p style={{ color: 'var(--color-text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>
+          Personalize sua foto de perfil para o ranking e configure notificações no celular.
         </p>
       </div>
 
