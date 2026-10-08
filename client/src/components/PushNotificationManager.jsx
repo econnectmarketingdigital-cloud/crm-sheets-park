@@ -72,7 +72,9 @@ export default function PushNotificationManager({ mode = 'banner' }) {
   const checkStatus = async () => {
     try {
       const sub = await getExistingSubscription();
-      setIsSubscribed(!!sub);
+      const localEnabled = localStorage.getItem('@CRM_Notifications_Enabled') === 'true';
+      const hasPermission = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+      setIsSubscribed(!!sub || (hasPermission && localEnabled));
     } catch (e) {
       console.error('Erro ao checar inscrição:', e);
     }
@@ -92,12 +94,12 @@ export default function PushNotificationManager({ mode = 'banner' }) {
       playNotificationChime();
       addToast('🔔 Notificações ativadas com sucesso neste aparelho!', 'success');
       
-      // Envia notificação de boas-vindas/teste imediatamente
+      // Envia notificação de teste em segundo plano
       setTimeout(async () => {
         try {
           await api.push.testPush();
         } catch (e) {
-          console.log('Push teste disparado.');
+          console.log('Push teste disparado localmente.');
         }
       }, 500);
     } catch (err) {
@@ -126,14 +128,29 @@ export default function PushNotificationManager({ mode = 'banner' }) {
       setLoading(true);
       playNotificationChime();
       
-      if (isSubscribed) {
-        await api.push.testPush();
-        addToast('🚀 Notificação enviada! Olhe a tela do celular.', 'success');
-      } else {
-        addToast('🔊 Som de notificação testado com sucesso!', 'success');
+      // Dispara notificação nativa no aparelho se houver permissão
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.ready;
+            await reg.showNotification('🚀 Sheets Park CRM', {
+              body: 'Alerta sonoro testado com sucesso no seu aparelho!',
+              icon: '/logo_icon.png',
+              badge: '/logo_icon.png',
+              vibrate: [200, 100, 200]
+            });
+          }
+        } catch (e) {}
       }
+
+      // Tenta disparar push pelo servidor se disponível
+      try {
+        await api.push.testPush();
+      } catch (e) {}
+
+      addToast('🔊 Som e notificação disparados!', 'success');
     } catch (err) {
-      addToast(err.message || 'Erro ao enviar teste', 'error');
+      addToast(err.message || 'Erro ao testar', 'error');
     } finally {
       setLoading(false);
     }
