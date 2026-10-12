@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiBell, FiBellOff, FiCheck, FiSend, FiSmartphone, FiShare, FiPlusSquare, FiInfo, FiX, FiVolume2 } from 'react-icons/fi';
+import { 
+  FiBell, FiBellOff, FiCheck, FiSend, FiSmartphone, FiShare, 
+  FiPlusSquare, FiInfo, FiX, FiVolume2, FiDownload, FiMoreVertical, FiMenu 
+} from 'react-icons/fi';
 import { isPushSupported, subscribeUserToPush, unsubscribeUserFromPush, getExistingSubscription } from '../services/pushNotification';
 import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
@@ -48,7 +51,8 @@ export default function PushNotificationManager({ mode = 'banner' }) {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const [showIOSModal, setShowIOSModal] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const { addToast } = useToast();
 
   const isIOS = typeof navigator !== 'undefined' && (
@@ -56,10 +60,25 @@ export default function PushNotificationManager({ mode = 'banner' }) {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   );
 
+  const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+
   const isStandalone = typeof window !== 'undefined' && (
     window.navigator.standalone === true ||
     window.matchMedia('(display-mode: standalone)').matches
   );
+
+  const [installTab, setInstallTab] = useState(isIOS ? 'ios' : 'android');
+
+  // Captura o evento nativo de instalação do Android (PWA beforeinstallprompt)
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
 
   useEffect(() => {
     const isSup = isPushSupported();
@@ -80,10 +99,30 @@ export default function PushNotificationManager({ mode = 'banner' }) {
     }
   };
 
+  const handleNativeAndroidInstall = async () => {
+    if (!deferredPrompt) {
+      addToast('Siga os passos abaixo para adicionar pelo menu do seu navegador.', 'info');
+      return;
+    }
+
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        addToast('🎉 Aplicativo adicionado à tela inicial com sucesso!', 'success');
+        setShowInstallModal(false);
+      }
+      setDeferredPrompt(null);
+    } catch (err) {
+      console.error('Erro ao instalar PWA:', err);
+    }
+  };
+
   const handleSubscribe = async () => {
-    // Se for iOS e não estiver no modo Home Screen, abre guia de instalação
+    // Se for iOS e não estiver instalado, abre guia da Apple
     if (isIOS && !isStandalone) {
-      setShowIOSModal(true);
+      setInstallTab('ios');
+      setShowInstallModal(true);
       return;
     }
 
@@ -156,9 +195,10 @@ export default function PushNotificationManager({ mode = 'banner' }) {
     }
   };
 
-  // Modal explicativo para iPhone / iPad
-  const renderIOSModal = () => {
-    if (!showIOSModal) return null;
+  // Modal explicativo para Instalação no Celular (Android e iPhone)
+  const renderInstallModal = () => {
+    if (!showInstallModal) return null;
+
     return (
       <div style={{
         position: 'fixed',
@@ -178,15 +218,18 @@ export default function PushNotificationManager({ mode = 'banner' }) {
         <div style={{
           backgroundColor: '#121418',
           border: '1px solid rgba(0, 245, 160, 0.4)',
-          borderRadius: '16px',
-          maxWidth: '420px',
+          borderRadius: '18px',
+          maxWidth: '460px',
           width: '100%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
           padding: '24px',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
+          boxShadow: '0 20px 45px rgba(0,0,0,0.85)',
           position: 'relative'
         }}>
+          {/* Botão Fechar */}
           <button
-            onClick={() => setShowIOSModal(false)}
+            onClick={() => setShowInstallModal(false)}
             style={{
               position: 'absolute',
               top: '16px',
@@ -206,52 +249,182 @@ export default function PushNotificationManager({ mode = 'banner' }) {
             <FiX size={18} />
           </button>
 
+          {/* Cabeçalho */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
             <div style={{
-              width: '42px', height: '42px', borderRadius: '12px',
+              width: '44px', height: '44px', borderRadius: '12px',
               backgroundColor: 'rgba(0, 245, 160, 0.15)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#00F5A0'
+              color: '#00F5A0', flexShrink: 0
             }}>
-              <FiSmartphone size={24} />
+              <FiDownload size={22} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: 700 }}>
-                Notificações no iPhone
+              <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#fff', fontWeight: 700 }}>
+                Instalar Aplicativo no Celular
               </h3>
               <span style={{ fontSize: '0.75rem', color: '#00F5A0', fontWeight: 600 }}>
-                Passo a passo rápido da Apple
+                Acesso rápido na tela inicial sem digitar link
               </span>
             </div>
           </div>
 
-          <p style={{ fontSize: '0.85rem', color: '#9ca3af', lineHeight: 1.4, margin: '0 0 16px 0' }}>
-            A Apple exige que o CRM seja adicionado à <strong>Tela de Início</strong> para enviar notificações com som na tela de bloqueio:
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '10px' }}>
-              <span style={{ background: '#00F5A0', color: '#061912', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, flexShrink: 0 }}>1</span>
-              <div style={{ fontSize: '0.825rem', color: '#fff' }}>
-                No Safari, toque no botão <strong>Compartilhar</strong> (ícone com quadrado e seta para cima <FiShare style={{ verticalAlign: 'middle', margin: '0 2px' }} /> na barra inferior).
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '10px' }}>
-              <span style={{ background: '#00F5A0', color: '#061912', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, flexShrink: 0 }}>2</span>
-              <div style={{ fontSize: '0.825rem', color: '#fff' }}>
-                Role a lista e selecione <strong style={{ color: '#00F5A0' }}>"Adicionar à Tela de Início"</strong> <FiPlusSquare style={{ verticalAlign: 'middle', margin: '0 2px' }} />.
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '10px' }}>
-              <span style={{ background: '#00F5A0', color: '#061912', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, flexShrink: 0 }}>3</span>
-              <div style={{ fontSize: '0.825rem', color: '#fff' }}>
-                Abra o Sheets Park pelo novo ícone na tela inicial do seu celular e toque em <strong>Ativar Notificações</strong>!
-              </div>
-            </div>
+          {/* Abas Android / iPhone */}
+          <div style={{
+            display: 'flex',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '10px',
+            padding: '4px',
+            marginBottom: '16px',
+            gap: '4px'
+          }}>
+            <button
+              onClick={() => setInstallTab('android')}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: 'none',
+                background: installTab === 'android' ? '#00F5A0' : 'transparent',
+                color: installTab === 'android' ? '#061912' : '#9ca3af',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'all 0.2s'
+              }}
+            >
+              🤖 Celular Android
+            </button>
+            <button
+              onClick={() => setInstallTab('ios')}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: 'none',
+                background: installTab === 'ios' ? '#00F5A0' : 'transparent',
+                color: installTab === 'ios' ? '#061912' : '#9ca3af',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'all 0.2s'
+              }}
+            >
+              🍏 iPhone (iOS)
+            </button>
           </div>
 
+          {/* CONTEÚDO DA ABA ANDROID */}
+          {installTab === 'android' && (
+            <div>
+              {/* Botão de 1 clique caso o navegador ofereça suporte direto */}
+              {deferredPrompt && (
+                <button
+                  onClick={handleNativeAndroidInstall}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #00F5A0, #00D284)',
+                    color: '#061912',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    fontSize: '0.9rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    marginBottom: '16px',
+                    boxShadow: '0 4px 15px rgba(0, 245, 160, 0.3)'
+                  }}
+                >
+                  <FiDownload size={18} /> Instalar Aplicativo Agora (1 Toque)
+                </button>
+              )}
+
+              <p style={{ fontSize: '0.85rem', color: '#9ca3af', lineHeight: 1.4, margin: '0 0 14px 0' }}>
+                Como adicionar o CRM na tela de início usando o <strong>Google Chrome</strong> ou <strong>Samsung Internet</strong>:
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '10px' }}>
+                  <span style={{ background: '#00F5A0', color: '#061912', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, flexShrink: 0 }}>1</span>
+                  <div style={{ fontSize: '0.825rem', color: '#fff' }}>
+                    Com o site aberto no Chrome, toque nos <strong>3 pontinhos (<FiMoreVertical style={{ verticalAlign: 'middle' }} />)</strong> no canto superior direito da tela.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '10px' }}>
+                  <span style={{ background: '#00F5A0', color: '#061912', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, flexShrink: 0 }}>2</span>
+                  <div style={{ fontSize: '0.825rem', color: '#fff' }}>
+                    Role a lista e toque em <strong style={{ color: '#00F5A0' }}>"Instalar aplicativo"</strong> (ou "Adicionar à tela inicial").
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '10px' }}>
+                  <span style={{ background: '#00F5A0', color: '#061912', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, flexShrink: 0 }}>3</span>
+                  <div style={{ fontSize: '0.825rem', color: '#fff' }}>
+                    Toque em <strong>"Instalar"</strong>. O ícone do <strong>Sheets Park CRM</strong> aparecerá na tela do celular como um aplicativo normal!
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                background: 'rgba(0, 245, 160, 0.08)',
+                border: '1px solid rgba(0, 245, 160, 0.25)',
+                borderRadius: '10px',
+                padding: '10px 12px',
+                fontSize: '0.78rem',
+                color: '#d1fae5',
+                marginBottom: '16px'
+              }}>
+                ✨ <strong>Vantagens no Android:</strong> Roda em tela cheia sem barra de navegador, abre mais rápido e recebe alertas sonoros de leads em tempo real.
+              </div>
+            </div>
+          )}
+
+          {/* CONTEÚDO DA ABA IPHONE */}
+          {installTab === 'ios' && (
+            <div>
+              <p style={{ fontSize: '0.85rem', color: '#9ca3af', lineHeight: 1.4, margin: '0 0 14px 0' }}>
+                No iPhone, a Apple exige que o CRM seja adicionado à <strong>Tela de Início</strong> para liberar notificações sonoras:
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '10px' }}>
+                  <span style={{ background: '#00F5A0', color: '#061912', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, flexShrink: 0 }}>1</span>
+                  <div style={{ fontSize: '0.825rem', color: '#fff' }}>
+                    No <strong>Safari</strong>, toque no botão <strong>Compartilhar</strong> (ícone com quadrado e seta para cima <FiShare style={{ verticalAlign: 'middle', margin: '0 2px' }} /> na barra inferior).
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '10px' }}>
+                  <span style={{ background: '#00F5A0', color: '#061912', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, flexShrink: 0 }}>2</span>
+                  <div style={{ fontSize: '0.825rem', color: '#fff' }}>
+                    Role a lista para baixo e selecione <strong style={{ color: '#00F5A0' }}>"Adicionar à Tela de Início"</strong> <FiPlusSquare style={{ verticalAlign: 'middle', margin: '0 2px' }} />.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '10px' }}>
+                  <span style={{ background: '#00F5A0', color: '#061912', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, flexShrink: 0 }}>3</span>
+                  <div style={{ fontSize: '0.825rem', color: '#fff' }}>
+                    Abra o Sheets Park pelo novo ícone criado na tela do seu iPhone e ative as notificações!
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Botões de Ação no Rodapé do Modal */}
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
               onClick={() => {
@@ -277,7 +450,7 @@ export default function PushNotificationManager({ mode = 'banner' }) {
               <FiVolume2 size={16} /> Testar Som
             </button>
             <button
-              onClick={() => setShowIOSModal(false)}
+              onClick={() => setShowInstallModal(false)}
               style={{
                 flex: 1,
                 background: 'linear-gradient(135deg, #00F5A0, #00D284)',
@@ -302,7 +475,8 @@ export default function PushNotificationManager({ mode = 'banner' }) {
   if (mode === 'bell') {
     const handleClick = () => {
       if (isIOS && !isStandalone && !isSubscribed) {
-        setShowIOSModal(true);
+        setInstallTab('ios');
+        setShowInstallModal(true);
       } else if (isSubscribed) {
         handleTest();
       } else {
@@ -312,16 +486,14 @@ export default function PushNotificationManager({ mode = 'banner' }) {
 
     return (
       <>
-        {renderIOSModal()}
+        {renderInstallModal()}
         <button
           onClick={handleClick}
           disabled={loading}
           title={
             isSubscribed 
               ? 'Notificações ativas! Toque para testar som' 
-              : (isIOS && !isStandalone)
-                ? 'Toque para ver como ativar no iPhone'
-                : 'Toque para ativar notificações de novos leads'
+              : 'Toque para ativar notificações de novos leads'
           }
           style={{
             background: isSubscribed ? 'rgba(0, 245, 160, 0.15)' : 'rgba(255, 87, 34, 0.18)',
@@ -360,7 +532,7 @@ export default function PushNotificationManager({ mode = 'banner' }) {
   if (mode === 'widget') {
     return (
       <>
-        {renderIOSModal()}
+        {renderInstallModal()}
         <div style={{
           background: 'var(--color-surface, #121418)',
           border: '1px solid var(--color-border, rgba(255, 255, 255, 0.08))',
@@ -449,14 +621,17 @@ export default function PushNotificationManager({ mode = 'banner' }) {
             </div>
           </div>
 
-          {/* Dica para iPhone se detectado que está fora do modo app */}
-          {isIOS && !isStandalone && (
+          {/* Banner de Instalação na Tela Inicial (para quem não abriu como PWA ainda) */}
+          {!isStandalone && (
             <div 
-              onClick={() => setShowIOSModal(true)}
+              onClick={() => {
+                setInstallTab(isIOS ? 'ios' : 'android');
+                setShowInstallModal(true);
+              }}
               style={{
                 marginTop: '0.5rem',
-                backgroundColor: 'rgba(56, 189, 248, 0.08)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
+                backgroundColor: isAndroid ? 'rgba(0, 245, 160, 0.08)' : 'rgba(56, 189, 248, 0.08)',
+                border: `1px solid ${isAndroid ? 'rgba(0, 245, 160, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
                 borderRadius: '10px',
                 padding: '12px 14px',
                 display: 'flex',
@@ -467,13 +642,24 @@ export default function PushNotificationManager({ mode = 'banner' }) {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <FiSmartphone size={18} color="#38BDF8" />
+                <FiDownload size={18} color={isAndroid ? '#00F5A0' : '#38BDF8'} />
                 <span style={{ fontSize: '0.825rem', color: '#e0f2fe' }}>
-                  <strong>Usando iPhone?</strong> Adicione à Tela de Início para liberar alertas mesmo com tela bloqueada.
+                  {isAndroid ? (
+                    <><strong>Instalar no Android:</strong> Adicione o app à tela inicial para tela cheia e acesso instantâneo.</>
+                  ) : isIOS ? (
+                    <><strong>Instalar no iPhone:</strong> Adicione à Tela de Início para liberar alertas sonoros na tela de bloqueio.</>
+                  ) : (
+                    <><strong>Instalar Aplicativo:</strong> Adicione o Sheets Park CRM à tela inicial do seu celular.</>
+                  )}
                 </span>
               </div>
-              <span style={{ fontSize: '0.75rem', color: '#38BDF8', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                Ver Como ➔
+              <span style={{ 
+                fontSize: '0.75rem', 
+                color: isAndroid ? '#00F5A0' : '#38BDF8', 
+                fontWeight: 700, 
+                whiteSpace: 'nowrap' 
+              }}>
+                Como Instalar ➔
               </span>
             </div>
           )}
@@ -487,7 +673,7 @@ export default function PushNotificationManager({ mode = 'banner' }) {
 
   return (
     <>
-      {renderIOSModal()}
+      {renderInstallModal()}
       <div style={{
         position: 'fixed',
         bottom: '72px', // acima da bottom navigation
@@ -508,7 +694,7 @@ export default function PushNotificationManager({ mode = 'banner' }) {
         animation: 'slideUp 0.3s ease-out'
       }}>
         <div 
-          onClick={isIOS && !isStandalone ? () => setShowIOSModal(true) : handleSubscribe}
+          onClick={isIOS && !isStandalone ? () => { setInstallTab('ios'); setShowInstallModal(true); } : handleSubscribe}
           style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, cursor: 'pointer' }}
         >
           <div style={{
@@ -532,7 +718,7 @@ export default function PushNotificationManager({ mode = 'banner' }) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <button
-            onClick={isIOS && !isStandalone ? () => setShowIOSModal(true) : handleSubscribe}
+            onClick={isIOS && !isStandalone ? () => { setInstallTab('ios'); setShowInstallModal(true); } : handleSubscribe}
             disabled={loading}
             style={{
               background: 'linear-gradient(135deg, #00F5A0, #00D284)',
