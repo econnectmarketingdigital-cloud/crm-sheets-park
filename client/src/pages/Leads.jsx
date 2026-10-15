@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { FiPlus, FiSearch, FiFilter } from 'react-icons/fi';
+import { getCampanhaBadge } from '../lib/utils';
 
 const getEtapaColor = (etapa) => {
   const colors = {
@@ -58,6 +59,7 @@ export default function Leads() {
   const [etapaFilter, setEtapaFilter] = useState(searchParams.get('etapa') || '');
   const [origemFilter, setOrigemFilter] = useState('');
   const [corretorFilter, setCorretorFilter] = useState(searchParams.get('corretor_id') || '');
+  const [produtoFilter, setProdutoFilter] = useState('');
   const navigate = useNavigate();
   const { addToast } = useToast();
   
@@ -97,8 +99,11 @@ export default function Leads() {
       const matchesEtapa = etapaFilter ? lead.etapa === etapaFilter : true;
       const matchesOrigem = origemFilter ? lead.origem === origemFilter : true;
       const matchesCorretor = corretorFilter ? lead.corretor_id === corretorFilter : true;
+      const matchesProduto = produtoFilter 
+        ? `${lead.empreendimento_nome || ''} ${lead.campanha || ''}`.toLowerCase().includes(produtoFilter.toLowerCase())
+        : true;
 
-      return matchesSearch && matchesEtapa && matchesOrigem && matchesCorretor;
+      return matchesSearch && matchesEtapa && matchesOrigem && matchesCorretor && matchesProduto;
     })
     .sort((a, b) => {
       const timeA = new Date(a.reengajado_em || a.created_at).getTime();
@@ -214,6 +219,22 @@ export default function Leads() {
             ))}
           </select>
         )}
+        <select 
+          value={produtoFilter} 
+          onChange={(e) => setProdutoFilter(e.target.value)}
+          style={{ 
+            padding: '8px', borderRadius: '4px', border: '1px solid #ddd', fontWeight: 600,
+            backgroundColor: produtoFilter ? 'rgba(0, 245, 160, 0.15)' : 'transparent',
+            color: produtoFilter ? '#00F5A0' : 'inherit'
+          }}
+        >
+          <option value="">Todos os Produtos / Campanhas</option>
+          <option value="Salinas">🌊 Salinas</option>
+          <option value="Amaro">🌴 Santo Amaro</option>
+          <option value="Beira-Rio">⛵ Beira-Rio</option>
+          <option value="Comercia">🏢 Comerciais</option>
+          <option value="Residencia">🏡 Residenciais</option>
+        </select>
       </div>
 
       {selectedLeads.length > 0 && (
@@ -313,7 +334,24 @@ export default function Leads() {
                         {getEtapaLabel(lead.etapa)}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--color-text-secondary)' }}>{lead.empreendimento_nome || '-'}</td>
+                    <td>
+                      {(() => {
+                        const b = getCampanhaBadge(lead.campanha, lead.empreendimento_nome);
+                        if (b) {
+                          return (
+                            <span style={{
+                              backgroundColor: b.bg, color: b.color,
+                              border: `1px solid ${b.border}`,
+                              padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700,
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {b.label}
+                            </span>
+                          );
+                        }
+                        return <span style={{ color: 'var(--color-text-secondary)' }}>{lead.empreendimento_nome || lead.campanha || '-'}</span>;
+                      })()}
+                    </td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>{formatDate(lead.created_at)}</td>
                   </tr>
                 ))}

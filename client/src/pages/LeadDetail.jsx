@@ -4,7 +4,7 @@ import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { FiPhone, FiMail, FiMessageCircle, FiEdit3, FiInfo, FiClock, FiCheck, FiXCircle, FiArrowRight, FiTrash2, FiArrowLeft } from 'react-icons/fi';
 import ModalFechamentoVenda from '../components/ModalFechamentoVenda';
-import { getWhatsAppUrl } from '../lib/utils';
+import { getWhatsAppUrl, getCampanhaBadge } from '../lib/utils';
 
 const ETAPAS = ['novo', 'contato_feito', 'visita_agendada', 'proposta', 'documentacao', 'fechado'];
 
@@ -191,8 +191,23 @@ export default function LeadDetail() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '15px', marginBottom: '20px' }}>
         <div>
-          <h1 className="font-heading" style={{ margin: '0 0 10px 0', fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '10px', color: '#FFFFFF' }}>
+          <h1 className="font-heading" style={{ margin: '0 0 10px 0', fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '10px', color: '#FFFFFF', flexWrap: 'wrap' }}>
             {lead.nome}
+            {(() => {
+              const b = getCampanhaBadge(lead.campanha, lead.empreendimento_nome);
+              if (b) {
+                return (
+                  <span style={{
+                    backgroundColor: b.bg, color: b.color,
+                    border: `1px solid ${b.border}`,
+                    padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 700
+                  }}>
+                    {b.label}
+                  </span>
+                );
+              }
+              return null;
+            })()}
             <span className="badge" style={{ fontSize: '0.7rem', padding: '4px 10px', borderRadius: '12px', background: 'rgba(255,255,255,0.08)', color: 'var(--color-text-secondary)' }}>
               {lead.origem}
             </span>
@@ -301,6 +316,18 @@ export default function LeadDetail() {
               <span style={{ fontSize: '0.8em', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Loteamento de Interesse</span>
               <p style={{ margin: '4px 0 0 0', fontWeight: 600, color: '#FFFFFF' }}>{lead.empreendimento_nome || 'Ainda não definido / Aberto'}</p>
             </div>
+            {lead.campanha && lead.campanha !== 'manual' && (
+              <div>
+                <span style={{ fontSize: '0.8em', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Campanha / Produto</span>
+                <p style={{ margin: '4px 0 0 0', fontWeight: 600, color: '#00F5A0' }}>{lead.campanha}</p>
+              </div>
+            )}
+            {lead.anuncio && (
+              <div>
+                <span style={{ fontSize: '0.8em', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Anúncio de Origem</span>
+                <p style={{ margin: '4px 0 0 0', fontWeight: 500, color: '#FFFFFF' }}>{lead.anuncio}</p>
+              </div>
+            )}
             <div>
               <span style={{ fontSize: '0.8em', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Corretor Responsável</span>
               <p style={{ margin: '4px 0 0 0', fontWeight: 600, color: '#FFFFFF' }}>{lead.corretor_nome || 'Fila Geral'}</p>

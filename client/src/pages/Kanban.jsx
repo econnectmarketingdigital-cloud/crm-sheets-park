@@ -6,7 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { FiClock, FiMessageCircle, FiPhone, FiUser, FiUsers, FiFilter } from 'react-icons/fi';
 import ModalFechamentoVenda from '../components/ModalFechamentoVenda';
-import { getWhatsAppUrl } from '../lib/utils';
+import { getWhatsAppUrl, getCampanhaBadge } from '../lib/utils';
 
 const columns = [
   { id: 'novo', title: 'Novo' },
@@ -35,6 +35,7 @@ const Kanban = () => {
   const [leads, setLeads] = useState([]);
   const [corretores, setCorretores] = useState([]);
   const [selectedCorretorId, setSelectedCorretorId] = useState('');
+  const [selectedProduto, setSelectedProduto] = useState('');
   const [loading, setLoading] = useState(true);
   const [showVendaModal, setShowVendaModal] = useState(false);
   const [activeLeadId, setActiveLeadId] = useState(null);
@@ -68,8 +69,12 @@ const Kanban = () => {
   const fetchLeads = fetchData;
 
   const filteredLeads = leads.filter(lead => {
-    if (!selectedCorretorId) return true;
-    return lead.corretor_id === selectedCorretorId;
+    if (selectedCorretorId && lead.corretor_id !== selectedCorretorId) return false;
+    if (selectedProduto) {
+      const text = `${lead.empreendimento_nome || ''} ${lead.campanha || ''}`.toLowerCase();
+      if (!text.includes(selectedProduto.toLowerCase())) return false;
+    }
+    return true;
   });
 
   const getLeadsByEtapa = (etapa) => {
@@ -187,6 +192,28 @@ const Kanban = () => {
               </select>
             </div>
           )}
+
+          {/* Filtro por Produto / Campanha */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <select
+              value={selectedProduto}
+              onChange={(e) => setSelectedProduto(e.target.value)}
+              style={{
+                padding: '6px 12px', borderRadius: '6px',
+                backgroundColor: selectedProduto ? 'rgba(0, 245, 160, 0.15)' : 'var(--color-surface)',
+                color: selectedProduto ? '#00F5A0' : 'var(--color-text)',
+                border: `1px solid ${selectedProduto ? '#00F5A0' : 'var(--color-border)'}`,
+                fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer'
+              }}
+            >
+              <option value="">-- Todos os Produtos / Campanhas --</option>
+              <option value="Salinas">🌊 Salinas</option>
+              <option value="Amaro">🌴 Santo Amaro</option>
+              <option value="Beira-Rio">⛵ Beira-Rio</option>
+              <option value="Comercia">🏢 Comerciais</option>
+              <option value="Residencia">🏡 Residenciais</option>
+            </select>
+          </div>
         </div>
       </div>
       
@@ -217,63 +244,85 @@ const Kanban = () => {
                         transition: 'background-color 0.2s ease'
                       }}
                     >
-                      {colLeads.map((lead, index) => (
-                        <Draggable key={lead.id} draggableId={lead.id} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              className="card"
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              onClick={() => navigate(`/leads/${lead.id}`)}
-                              style={{
-                                ...provided.draggableProps.style,
-                                opacity: snapshot.isDragging ? 0.8 : 1,
-                                marginBottom: '0.5rem',
-                                padding: '0.75rem',
-                                cursor: 'pointer',
-                                border: lead.reengajado ? '1px solid rgba(255, 87, 34, 0.45)' : undefined,
-                                boxShadow: lead.reengajado ? '0 0 10px rgba(255, 87, 34, 0.15)' : undefined,
-                              }}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                  <h4 style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text)', margin: 0 }}>{lead.nome}</h4>
-                                  {lead.reengajado && (
-                                    <span style={{ 
-                                      alignSelf: 'flex-start',
-                                      backgroundColor: 'rgba(255, 87, 34, 0.15)', 
-                                      color: '#ff5722', 
-                                      border: '1px solid rgba(255, 87, 34, 0.4)', 
-                                      fontSize: '0.65rem', 
-                                      fontWeight: 700, 
-                                      padding: '1px 6px', 
-                                      borderRadius: '4px',
+                      {colLeads.map((lead, index) => {
+                        const campBadge = getCampanhaBadge(lead.campanha, lead.empreendimento_nome);
+
+                        return (
+                          <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                className="card"
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                onClick={() => navigate(`/leads/${lead.id}`)}
+                                style={{
+                                  ...provided.draggableProps.style,
+                                  opacity: snapshot.isDragging ? 0.8 : 1,
+                                  marginBottom: '0.5rem',
+                                  padding: '0.75rem',
+                                  cursor: 'pointer',
+                                  border: lead.reengajado ? '1px solid rgba(255, 87, 34, 0.45)' : undefined,
+                                  boxShadow: lead.reengajado ? '0 0 10px rgba(255, 87, 34, 0.15)' : undefined,
+                                }}
+                              >
+                                {campBadge && (
+                                  <div style={{ marginBottom: '6px' }}>
+                                    <span style={{
+                                      backgroundColor: campBadge.bg,
+                                      color: campBadge.color,
+                                      border: `1px solid ${campBadge.border}`,
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
                                       display: 'inline-flex',
                                       alignItems: 'center',
-                                      gap: '3px'
+                                      gap: '4px'
                                     }}>
-                                      🔥 Preencheu de novo
+                                      {campBadge.label}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                    <h4 style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-text)', margin: 0 }}>{lead.nome}</h4>
+                                    {lead.reengajado && (
+                                      <span style={{ 
+                                        alignSelf: 'flex-start',
+                                        backgroundColor: 'rgba(255, 87, 34, 0.15)', 
+                                        color: '#ff5722', 
+                                        border: '1px solid rgba(255, 87, 34, 0.4)', 
+                                        fontSize: '0.65rem', 
+                                        fontWeight: 700, 
+                                        padding: '1px 6px', 
+                                        borderRadius: '4px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px'
+                                      }}>
+                                        🔥 Preencheu de novo
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className={`badge ${originBadgeClass(lead.origem)}`} style={{ fontSize: '0.7rem' }}>
+                                    {originLabel(lead.origem)}
+                                  </span>
+                                </div>
+                                
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 0.5rem 0' }}>
+                                  {lead.empreendimento_nome && !campBadge ? (
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+                                      {lead.empreendimento_nome}
+                                    </p>
+                                  ) : <span />}
+                                  {lead.corretor_nome && (
+                                    <span style={{ fontSize: '0.7rem', color: 'var(--color-primary)', background: 'var(--color-primary-soft)', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}>
+                                      {lead.corretor_nome}
                                     </span>
                                   )}
                                 </div>
-                                <span className={`badge ${originBadgeClass(lead.origem)}`} style={{ fontSize: '0.7rem' }}>
-                                  {originLabel(lead.origem)}
-                                </span>
-                              </div>
-                              
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 0.5rem 0' }}>
-                                {lead.empreendimento_nome ? (
-                                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', margin: 0 }}>
-                                    {lead.empreendimento_nome}
-                                  </p>
-                                ) : <span />}
-                                {lead.corretor_nome && (
-                                  <span style={{ fontSize: '0.7rem', color: 'var(--color-primary)', background: 'var(--color-primary-soft)', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}>
-                                    {lead.corretor_nome}
-                                  </span>
-                                )}
-                              </div>
                               
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border)' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: lead.reengajado ? '#ff7043' : 'var(--color-text-tertiary)' }}>
@@ -299,8 +348,9 @@ const Kanban = () => {
                             </div>
                           )}
                         </Draggable>
-                      ))}
-                      {provided.placeholder}
+                      );
+                    })}
+                    {provided.placeholder}
                     </div>
                   )}
                 </Droppable>

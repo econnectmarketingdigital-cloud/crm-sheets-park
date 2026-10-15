@@ -116,47 +116,69 @@ const handleIncomingLead = async (leadData) => {
       return;
     }
     
-    let empreendimentoId = null;
-    if (empreendimento) {
-      // 1. Tenta match direto case-insensitive
-      let emp = await db.queryOne('SELECT id FROM empreendimentos WHERE nome ILIKE ?', [`%${empreendimento}%`]);
-      
-      // 2. Se não achou, tenta por palavras-chave conhecidas (Residenciais, Comerciais, Beira-Rio)
-      if (!emp) {
-        const lower = empreendimento.toLowerCase();
-        if (lower.includes('residencial') || lower.includes('residenciais')) {
-          emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Residenciais%'");
-        } else if (lower.includes('comercial') || lower.includes('comerciais')) {
-          emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Comerciais%'");
-        } else if (lower.includes('beira') || lower.includes('rio')) {
-          emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Beira-Rio%'");
-        }
-      }
+    // Captura com máxima flexibilidade os campos de campanha, anúncio e formulário
+    const rawCampanha = leadData.campanha || leadData.campaign_name || leadData.campaign || leadData.form_name || leadData.formulario || '';
+    const rawAnuncio = leadData.anuncio || leadData.ad_name || null;
 
-      if (emp) {
-        empreendimentoId = emp.id;
-      }
+    // Constrói contexto de busca para identificar o produto/loteamento (Salinas, Santo Amaro, etc.)
+    const searchContext = [
+      leadData.empreendimento,
+      leadData.produto,
+      rawCampanha,
+      rawAnuncio,
+      leadData.form_name,
+      leadData.formulario,
+      leadData.observacoes
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    let finalCampanha = rawCampanha || 'Meta Ads';
+    let empreendimentoId = null;
+
+    if (searchContext.includes('salinas')) {
+      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Salinas%'");
+      if (emp) empreendimentoId = emp.id;
+      if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') finalCampanha = 'Salinas';
+    } else if (searchContext.includes('amaro') || searchContext.includes('santa amaro') || searchContext.includes('santo amaro')) {
+      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Amaro%'");
+      if (emp) empreendimentoId = emp.id;
+      if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') finalCampanha = 'Santo Amaro';
+    } else if (searchContext.includes('beira') || searchContext.includes('rio')) {
+      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Beira-Rio%'");
+      if (emp) empreendimentoId = emp.id;
+      if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') finalCampanha = 'Beira-Rio';
+    } else if (searchContext.includes('comercial') || searchContext.includes('comerciais')) {
+      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Comerciais%'");
+      if (emp) empreendimentoId = emp.id;
+      if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') finalCampanha = 'Comerciais';
+    } else if (searchContext.includes('residencial') || searchContext.includes('residenciais')) {
+      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Residenciais%'");
+      if (emp) empreendimentoId = emp.id;
+      if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') finalCampanha = 'Residenciais';
+    } else if (empreendimento) {
+      let emp = await db.queryOne('SELECT id FROM empreendimentos WHERE nome ILIKE ?', [`%${empreendimento}%`]);
+      if (emp) empreendimentoId = emp.id;
     }
 
     const corretorId = await getNextCorretor(origem) || null;
     const id = uuidv4();
     
     await db.execute(`
-      INSERT INTO leads (id, nome, telefone, email, origem, campanha, faixa_renda, observacoes, corretor_id, empreendimento_interesse_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [id, nome, telefone, email, origem, campanha || 'Meta Ads', rendaFinal, observacoes || null, corretorId, empreendimentoId]);
+      INSERT INTO leads (id, nome, telefone, email, origem, campanha, anuncio, faixa_renda, observacoes, corretor_id, empreendimento_interesse_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [id, nome, telefone, email, origem, finalCampanha, rawAnuncio, rendaFinal, observacoes || null, corretorId, empreendimentoId]);
     
-    await db.execute(`INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) VALUES (?, ?, ?, 'sistema', ?)`, [uuidv4(), id, corretorId, `Lead via Webhook ${origem}`]);
+    await db.execute(`INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) VALUES (?, ?, ?, 'sistema', ?)`, [uuidv4(), id, corretorId, `Lead via Webhook ${origem} (Campanha: ${finalCampanha})`]);
     
-    console.log(`[Webhook] ✅ Lead salvo no CRM com sucesso! (${nome} -> Corretor ID: ${corretorId})`);
+    console.log(`[Webhook] ✅ Lead salvo no CRM com sucesso! (${nome} [${finalCampanha}] -> Corretor ID: ${corretorId})`);
 
     // Dispara notificação por e-mail para o corretor atribuído
     notifyCorretorNewLead(id).catch(err => console.error('[Webhook] Erro ao notificar corretor:', err));
 
     if (corretorId) {
+      const tagProduto = (finalCampanha && finalCampanha.toLowerCase() !== 'meta ads') ? ` [${finalCampanha}]` : '';
       sendPushToUser(corretorId, {
-        title: '🔥 Novo Lead Atribuído!',
-        body: `${nome} acabou de entrar no CRM! Toque para atender.`,
+        title: `🔥 Novo Lead${tagProduto}!`,
+        body: `${nome} acabou de entrar no CRM com interesse em ${finalCampanha || 'imóveis'}! Toque para atender.`,
         icon: '/logo_icon.png',
         badge: '/logo_icon.png',
         data: { url: `/leads/${id}` }
