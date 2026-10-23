@@ -66,7 +66,7 @@ router.post('/', authenticateToken, async (req, res) => {
     if (origem === 'manual') {
       corretorId = req.user.id;
     } else {
-      corretorId = await getNextCorretor(origem);
+      corretorId = await getNextCorretor(origem, campanha);
     }
 
     const cleanEmpId = empreendimento_interesse_id && empreendimento_interesse_id.trim() !== '' ? empreendimento_interesse_id : null;

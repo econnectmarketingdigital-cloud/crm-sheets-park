@@ -20,8 +20,27 @@ router.put('/config', authenticateToken, requireRole('gestor'), async (req, res)
 
 router.get('/corretores', authenticateToken, async (req, res) => {
   const db = getDb();
-  const corretores = await db.query("SELECT id, nome, role, disponivel_rodizio, pausado_rodizio, ativo FROM usuarios");
+  const corretores = await db.query(`
+    SELECT id, nome, email, role, disponivel_rodizio, pausado_rodizio, ativo,
+           COALESCE(peso_salinas, 0) as peso_salinas,
+           COALESCE(peso_santo_amaro, 1) as peso_santo_amaro
+    FROM usuarios
+    WHERE ativo = 1
+    ORDER BY nome ASC
+  `);
   res.json({ success: true, data: corretores });
+});
+
+router.put('/corretor/:id/pesos', authenticateToken, requireRole('gestor'), async (req, res) => {
+  const db = getDb();
+  const { peso_salinas, peso_santo_amaro } = req.body;
+  if (peso_salinas !== undefined) {
+    await db.execute("UPDATE usuarios SET peso_salinas = ? WHERE id = ?", [parseInt(peso_salinas, 10) || 0, req.params.id]);
+  }
+  if (peso_santo_amaro !== undefined) {
+    await db.execute("UPDATE usuarios SET peso_santo_amaro = ? WHERE id = ?", [parseInt(peso_santo_amaro, 10) || 0, req.params.id]);
+  }
+  res.json({ success: true, data: 'Divisão de praças atualizada' });
 });
 
 router.put('/corretor/:id/pausar', authenticateToken, async (req, res) => {

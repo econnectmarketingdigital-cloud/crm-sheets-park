@@ -85,6 +85,7 @@ export default {
     getCorretoresRodizio: () => fetchWithAuth('/rodizio/corretores'),
     pausarCorretor: (id, pausar) => fetchWithAuth(`/rodizio/corretor/${id}/pausar`, { method: 'PUT', body: JSON.stringify({ pausar }) }),
     toggleDisponivel: (id, disponivel) => fetchWithAuth(`/rodizio/corretor/${id}/disponivel`, { method: 'PUT', body: JSON.stringify({ disponivel }) }),
+    updatePesosCorretor: (id, data) => fetchWithAuth(`/rodizio/corretor/${id}/pesos`, { method: 'PUT', body: JSON.stringify(data) }),
   },
   config: {
     getConfig: () => fetchWithAuth('/config'),

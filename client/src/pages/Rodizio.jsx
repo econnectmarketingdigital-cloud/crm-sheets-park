@@ -54,6 +54,17 @@ const Rodizio = () => {
     }
   };
 
+  const handlePesoChange = async (id, field, val) => {
+    const numVal = parseInt(val, 10) || 0;
+    try {
+      await api.rodizio.updatePesosCorretor(id, { [field]: numVal });
+      setCorretores(prev => prev.map(c => c.id === id ? { ...c, [field]: numVal } : c));
+    } catch (error) {
+      console.error('Erro ao atualizar praça/peso:', error);
+      alert('Erro ao atualizar praça/peso');
+    }
+  };
+
   if (loading) {
     return <div className="loading-screen"><div className="spinner"></div></div>;
   }
@@ -62,14 +73,14 @@ const Rodizio = () => {
     <div className="page-container" style={{ padding: '2rem' }}>
       <header style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Gerenciamento de Rodízio</h1>
-        <p className="text-secondary">Gerencie a distribuição automática de leads e a disponibilidade da equipe.</p>
+        <p className="text-secondary">Gerencie a distribuição automática de leads por praça (Salinas e Santo Amaro) e a disponibilidade da equipe.</p>
       </header>
 
       {config && (
         <section className="card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Configurações Gerais</h2>
           
-          <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <label htmlFor="rodizioAtivo" style={{ fontWeight: '500' }}>Rodízio Automático:</label>
               <input
@@ -104,10 +115,10 @@ const Rodizio = () => {
             <span style={{ fontSize: '1.5rem' }}>🔒</span>
             <div>
               <strong style={{ display: 'block', color: '#2e7d32' }}>
-                Redistribuição Automática de Leads: DESATIVADA
+                Distribuição Inteligente por Praça (Salinas & Santo Amaro)
               </strong>
               <span style={{ fontSize: '0.85rem', color: '#555' }}>
-                Os leads são distribuídos igualmente entre os corretores ativos e permanecem fixos na conta de quem recebeu, sem expirar ou passar para outro corretor.
+                Os leads de Salinas e Santo Amaro possuem filas independentes e balanceadas conforme os pesos configurados abaixo.
               </span>
             </div>
           </div>
@@ -115,13 +126,15 @@ const Rodizio = () => {
       )}
 
       <section className="card" style={{ padding: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Equipe no Rodízio</h2>
+        <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Equipe no Rodízio por Praça</h2>
         
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                 <th style={{ padding: '1rem', fontWeight: '600' }}>Corretor</th>
+                <th style={{ padding: '1rem', fontWeight: '600' }}>🌊 Fila Salinas</th>
+                <th style={{ padding: '1rem', fontWeight: '600' }}>🌴 Fila Santo Amaro</th>
                 <th style={{ padding: '1rem', fontWeight: '600' }}>Status (Online/Offline)</th>
                 <th style={{ padding: '1rem', fontWeight: '600' }}>Plantão do Dia</th>
                 <th style={{ padding: '1rem', fontWeight: '600' }}>Ações</th>
@@ -131,12 +144,54 @@ const Rodizio = () => {
               {corretores.map((corretor) => {
                 const isOnline = corretor.pausado_rodizio === 0;
                 const isDisponivel = corretor.disponivel_rodizio === 1;
+                const pesoSalinas = corretor.peso_salinas ?? 0;
+                const pesoSantoAmaro = corretor.peso_santo_amaro ?? 0;
 
                 return (
                   <tr key={corretor.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <td style={{ padding: '1rem' }}>
-                      <div style={{ fontWeight: '500' }}>{corretor.nome}</div>
+                      <div style={{ fontWeight: '600' }}>{corretor.nome}</div>
                       <div className="text-secondary" style={{ fontSize: '0.85rem' }}>{corretor.email}</div>
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <select
+                        className="input"
+                        value={pesoSalinas}
+                        onChange={(e) => handlePesoChange(corretor.id, 'peso_salinas', e.target.value)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          border: pesoSalinas > 0 ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid var(--color-border)',
+                          backgroundColor: pesoSalinas > 0 ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
+                          color: pesoSalinas > 0 ? '#38BDF8' : 'var(--color-text-secondary)'
+                        }}
+                      >
+                        <option value={0}>Não recebe (0)</option>
+                        <option value={1}>Ativo — Peso 1 (Normal)</option>
+                        <option value={2}>Ativo — Peso 2 (Dobro)</option>
+                      </select>
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <select
+                        className="input"
+                        value={pesoSantoAmaro}
+                        onChange={(e) => handlePesoChange(corretor.id, 'peso_santo_amaro', e.target.value)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          border: pesoSantoAmaro > 0 ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid var(--color-border)',
+                          backgroundColor: pesoSantoAmaro > 0 ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
+                          color: pesoSantoAmaro > 0 ? '#10B981' : 'var(--color-text-secondary)'
+                        }}
+                      >
+                        <option value={0}>Não recebe (0)</option>
+                        <option value={1}>Ativo — Peso 1 (Normal)</option>
+                        <option value={2}>Ativo — Peso 2 (Prioridade)</option>
+                      </select>
                     </td>
                     <td style={{ padding: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -175,7 +230,7 @@ const Rodizio = () => {
               
               {corretores.length === 0 && (
                 <tr>
-                  <td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-secondary)' }}>
+                  <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-secondary)' }}>
                     Nenhum corretor encontrado.
                   </td>
                 </tr>

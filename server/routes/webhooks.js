@@ -68,33 +68,193 @@ router.get('/meta', async (req, res) => {
   }
 });
 
+const DEFAULT_PAGE_ID = '861398503718706';
+const FALLBACK_PAGE_TOKEN = 'EAAW4tBepbSIBSZBZA3CNtk5VZB6hnx1cUUUalKSvppZB5FxX77QKpTGgEkgUCmFYHmZBzSIhDWji0dhLlvs2q2RPOwm5SaY4ZC3ZCPECvEQPgUe6Lr8safhumtSy7JgwjzAeF3QyZACxoDfiFgxdCMZAAZCeRwFTdQQIVchcZBRaxkisMn1S0ZBZBfCQ9QC3ygqk0bNehHFhZBJvl7';
+let cachedPageToken = null;
+
+async function getValidPageToken() {
+  if (cachedPageToken) return cachedPageToken;
+  const envToken = process.env.META_PAGE_ACCESS_TOKEN;
+  if (envToken) {
+    try {
+      const res = await fetch(`https://graph.facebook.com/v20.0/${DEFAULT_PAGE_ID}?fields=access_token&access_token=${envToken}`);
+      const data = await res.json();
+      if (data && data.access_token) {
+        cachedPageToken = data.access_token;
+        return cachedPageToken;
+      }
+    } catch (err) {
+      // ignora erro e usa fallback
+    }
+  }
+  return FALLBACK_PAGE_TOKEN;
+}
+
+// Consulta rápida na Graph API da Meta quando o Make não envia campaign_name / ad_name
+async function resolveMetaLeadDetails(telefone, nome) {
+  try {
+    const token = await getValidPageToken();
+    if (!token) return null;
+
+    const digits = (telefone || '').replace(/\D/g, '');
+    const last8 = digits.length >= 8 ? digits.slice(-8) : '';
+    const cleanName = (nome || '').trim().toLowerCase();
+
+    const url = `https://graph.facebook.com/v20.0/${DEFAULT_PAGE_ID}/leadgen_forms?fields=id,name,leads.limit(15){id,created_time,ad_name,campaign_name,field_data}&access_token=${token}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data || !Array.isArray(data.data)) return null;
+
+    let bestMatch = null;
+    for (const form of data.data) {
+      const leads = form.leads?.data || [];
+      for (const ml of leads) {
+        let mPhone = '';
+        let mName = '';
+        for (const f of ml.field_data || []) {
+          const fn = (f.name || '').toLowerCase();
+          if (fn.includes('phone') || fn.includes('whatsapp') || fn.includes('telefone')) {
+            mPhone = f.values?.[0] || '';
+          } else if (fn.includes('name') || fn.includes('nome')) {
+            mName = f.values?.[0] || '';
+          }
+        }
+        const mDigits = mPhone.replace(/\D/g, '');
+        const mLast8 = mDigits.length >= 8 ? mDigits.slice(-8) : '';
+
+        const phoneMatches = last8 && mLast8 && last8 === mLast8;
+        const nameMatches = cleanName && mName && cleanName === mName.trim().toLowerCase();
+
+        if (phoneMatches || nameMatches) {
+          if (!bestMatch || new Date(ml.created_time) > new Date(bestMatch.created_time)) {
+            bestMatch = {
+              form_name: form.name || '',
+              campaign_name: ml.campaign_name || '',
+              ad_name: ml.ad_name || '',
+              created_time: ml.created_time
+            };
+          }
+        }
+      }
+    }
+    return bestMatch;
+  } catch (err) {
+    console.error('[Webhook] Erro ao consultar detalhes do lead na Meta API:', err.message);
+    return null;
+  }
+}
+
 const handleIncomingLead = async (leadData) => {
   const db = getDb();
   const { nome, telefone, email, origem, campanha, empreendimento, faixa_renda, renda, observacoes } = leadData;
   const rendaFinal = faixa_renda || renda || null;
 
   try {
+    // Captura com máxima flexibilidade os campos de campanha, anúncio e formulário
+    let rawCampanha = leadData.campanha || leadData.campaign_name || leadData.campaign || leadData.form_name || leadData.formulario || '';
+    let rawAnuncio = leadData.anuncio || leadData.ad_name || null;
+    let rawFormName = leadData.form_name || leadData.formulario || '';
+
+    // Se o Make enviou campanha em branco ou genérica ("Meta Ads"), busca automaticamente na Graph API da Meta
+    if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads' || !rawAnuncio) {
+      const metaDetails = await resolveMetaLeadDetails(telefone, nome);
+      if (metaDetails) {
+        if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') {
+          rawCampanha = metaDetails.campaign_name || metaDetails.form_name || rawCampanha;
+        }
+        if (!rawAnuncio && metaDetails.ad_name) {
+          rawAnuncio = metaDetails.ad_name;
+        }
+        if (!rawFormName && metaDetails.form_name) {
+          rawFormName = metaDetails.form_name;
+        }
+        console.log(`[Webhook] 🔍 Campanha identificada via Meta Graph API: Campanha="${metaDetails.campaign_name}" | Form="${metaDetails.form_name}" | Anúncio="${metaDetails.ad_name}"`);
+      }
+    }
+
+    // Constrói contexto de busca para identificar o produto/loteamento (Salinas, Santo Amaro, etc.)
+    const searchContext = [
+      leadData.empreendimento,
+      leadData.produto,
+      rawCampanha,
+      rawAnuncio,
+      rawFormName,
+      leadData.observacoes
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    let finalCampanha = rawCampanha || 'Meta Ads';
+    let empreendimentoId = null;
+
+    if (searchContext.includes('salinas')) {
+      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Salinas%'");
+      if (emp) empreendimentoId = emp.id;
+      finalCampanha = 'Salinas';
+    } else if (searchContext.includes('amaro') || searchContext.includes('santa amaro') || searchContext.includes('santo amaro')) {
+      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Amaro%'");
+      if (emp) empreendimentoId = emp.id;
+      finalCampanha = 'Santo Amaro';
+    } else if (searchContext.includes('beira') || searchContext.includes('rio')) {
+      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Beira-Rio%'");
+      if (emp) empreendimentoId = emp.id;
+      finalCampanha = 'Beira-Rio';
+    } else if (searchContext.includes('comercial') || searchContext.includes('comerciais')) {
+      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Comerciais%'");
+      if (emp) empreendimentoId = emp.id;
+      finalCampanha = 'Comerciais';
+    } else if (searchContext.includes('residencial') || searchContext.includes('residenciais')) {
+      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Residenciais%'");
+      if (emp) empreendimentoId = emp.id;
+      finalCampanha = 'Residenciais';
+    } else {
+      // Fallback inteligente por estrutura das perguntas do formulário e DDD caso a Graph API não tenha retornado a tempo
+      const obsText = (observacoes || '').toLowerCase();
+      const digits = (telefone || '').replace(/\D/g, '');
+      const ddd = digits.startsWith('5555') ? digits.slice(4, 6) : (digits.startsWith('55') ? digits.slice(2, 4) : digits.slice(0, 2));
+
+      if (obsText.includes('preferência de contato: whatsapp') || obsText.includes('preferência de contato: ligação') || ddd === '98' || ddd === '99') {
+        const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Amaro%'");
+        if (emp) empreendimentoId = emp.id;
+        finalCampanha = 'Santo Amaro';
+      } else if (ddd === '91' || ddd === '93' || ddd === '94') {
+        const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Salinas%'");
+        if (emp) empreendimentoId = emp.id;
+        finalCampanha = 'Salinas';
+      } else if (empreendimento) {
+        const emp = await db.queryOne('SELECT id FROM empreendimentos WHERE nome ILIKE ?', [`%${empreendimento}%`]);
+        if (emp) empreendimentoId = emp.id;
+      }
+    }
+
+    // Se observacoes veio com "Anúncio:  |" em branco do Make, injeta o nome do anúncio identificado
+    let observacoesFinais = observacoes || null;
+    if (observacoesFinais && observacoesFinais.includes('Anúncio:  |') && rawAnuncio) {
+      observacoesFinais = observacoesFinais.replace('Anúncio:  |', `Anúncio: ${rawAnuncio} |`);
+    }
+
     const existing = await findExistingLead(telefone, email);
     if (existing) {
-      console.log(`[Webhook] 🔥 Lead reengajado detectado: ${existing.nome} (${existing.telefone})`);
+      console.log(`[Webhook] 🔥 Lead reengajado detectado: ${existing.nome} (${existing.telefone}) [${finalCampanha}]`);
       
-      const novasObs = observacoes || '';
+      const novasObs = observacoesFinais || '';
       const dataHora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-      const historicoMsg = `🔥 [RE-ENGAJAMENTO] O lead preencheu o formulário novamente em ${dataHora}. ${novasObs ? `Dados preenchidos: ${novasObs}` : ''}`;
+      const historicoMsg = `🔥 [RE-ENGAJAMENTO - ${finalCampanha}] O lead preencheu o formulário novamente em ${dataHora}. ${novasObs ? `Dados preenchidos: ${novasObs}` : ''}`;
       
       const obsAtualizada = existing.observacoes 
-        ? `${existing.observacoes}\n\n[Reengajamento em ${dataHora}]:\n${novasObs}`
-        : `[Reengajamento em ${dataHora}]:\n${novasObs}`;
+        ? `${existing.observacoes}\n\n[Reengajamento ${finalCampanha} em ${dataHora}]:\n${novasObs}`
+        : `[Reengajamento ${finalCampanha} em ${dataHora}]:\n${novasObs}`;
 
       await db.execute(`
         UPDATE leads 
         SET reengajado = true,
             reengajado_em = CURRENT_TIMESTAMP,
             vezes_convertido = COALESCE(vezes_convertido, 1) + 1,
+            campanha = CASE WHEN campanha IS NULL OR campanha = 'Meta Ads' THEN ? ELSE campanha END,
+            anuncio = COALESCE(?, anuncio),
+            empreendimento_interesse_id = COALESCE(?, empreendimento_interesse_id),
             observacoes = ?,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `, [obsAtualizada, existing.id]);
+      `, [finalCampanha, rawAnuncio, empreendimentoId, obsAtualizada, existing.id]);
 
       await db.execute(`
         INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao)
@@ -106,8 +266,8 @@ const handleIncomingLead = async (leadData) => {
 
       if (existing.corretor_id) {
         sendPushToUser(existing.corretor_id, {
-          title: '⚡ Seu Lead Preencheu Novamente!',
-          body: `🔥 ${existing.nome} preencheu o formulário novamente! Toque para ver os dados.`,
+          title: `⚡ Seu Lead [${finalCampanha}] Preencheu Novamente!`,
+          body: `🔥 ${existing.nome} preencheu o formulário de ${finalCampanha} novamente! Toque para ver os dados.`,
           icon: '/logo_icon.png',
           badge: '/logo_icon.png',
           data: { url: `/leads/${existing.id}` }
@@ -115,57 +275,14 @@ const handleIncomingLead = async (leadData) => {
       }
       return;
     }
-    
-    // Captura com máxima flexibilidade os campos de campanha, anúncio e formulário
-    const rawCampanha = leadData.campanha || leadData.campaign_name || leadData.campaign || leadData.form_name || leadData.formulario || '';
-    const rawAnuncio = leadData.anuncio || leadData.ad_name || null;
 
-    // Constrói contexto de busca para identificar o produto/loteamento (Salinas, Santo Amaro, etc.)
-    const searchContext = [
-      leadData.empreendimento,
-      leadData.produto,
-      rawCampanha,
-      rawAnuncio,
-      leadData.form_name,
-      leadData.formulario,
-      leadData.observacoes
-    ].filter(Boolean).join(' ').toLowerCase();
-
-    let finalCampanha = rawCampanha || 'Meta Ads';
-    let empreendimentoId = null;
-
-    if (searchContext.includes('salinas')) {
-      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Salinas%'");
-      if (emp) empreendimentoId = emp.id;
-      if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') finalCampanha = 'Salinas';
-    } else if (searchContext.includes('amaro') || searchContext.includes('santa amaro') || searchContext.includes('santo amaro')) {
-      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Amaro%'");
-      if (emp) empreendimentoId = emp.id;
-      if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') finalCampanha = 'Santo Amaro';
-    } else if (searchContext.includes('beira') || searchContext.includes('rio')) {
-      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Beira-Rio%'");
-      if (emp) empreendimentoId = emp.id;
-      if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') finalCampanha = 'Beira-Rio';
-    } else if (searchContext.includes('comercial') || searchContext.includes('comerciais')) {
-      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Comerciais%'");
-      if (emp) empreendimentoId = emp.id;
-      if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') finalCampanha = 'Comerciais';
-    } else if (searchContext.includes('residencial') || searchContext.includes('residenciais')) {
-      const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Residenciais%'");
-      if (emp) empreendimentoId = emp.id;
-      if (!rawCampanha || rawCampanha.toLowerCase() === 'meta ads') finalCampanha = 'Residenciais';
-    } else if (empreendimento) {
-      let emp = await db.queryOne('SELECT id FROM empreendimentos WHERE nome ILIKE ?', [`%${empreendimento}%`]);
-      if (emp) empreendimentoId = emp.id;
-    }
-
-    const corretorId = await getNextCorretor(origem) || null;
+    const corretorId = await getNextCorretor(origem, finalCampanha) || null;
     const id = uuidv4();
     
     await db.execute(`
       INSERT INTO leads (id, nome, telefone, email, origem, campanha, anuncio, faixa_renda, observacoes, corretor_id, empreendimento_interesse_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [id, nome, telefone, email, origem, finalCampanha, rawAnuncio, rendaFinal, observacoes || null, corretorId, empreendimentoId]);
+    `, [id, nome, telefone, email, origem, finalCampanha, rawAnuncio, rendaFinal, observacoesFinais, corretorId, empreendimentoId]);
     
     await db.execute(`INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) VALUES (?, ?, ?, 'sistema', ?)`, [uuidv4(), id, corretorId, `Lead via Webhook ${origem} (Campanha: ${finalCampanha})`]);
     
