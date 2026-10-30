@@ -65,6 +65,8 @@ export default function Leads() {
   
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [bulkCorretorId, setBulkCorretorId] = useState('');
+  const [isTransferringBulk, setIsTransferringBulk] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -149,6 +151,45 @@ export default function Leads() {
       fetchLeads(); // refresh anyway to show updated state
     } finally {
       setIsDeletingBulk(false);
+    }
+  };
+
+  const handleBulkTransfer = async () => {
+    if (!bulkCorretorId) {
+      addToast('Selecione um corretor de destino para transferir os leads.', 'error');
+      return;
+    }
+
+    const corretorDestino = corretores.find(c => String(c.id) === String(bulkCorretorId));
+    const nomeDestino = corretorDestino ? corretorDestino.nome : 'o corretor selecionado';
+
+    if (!window.confirm(`Deseja transferir ${selectedLeads.length} lead(s) selecionado(s) para ${nomeDestino}?`)) {
+      return;
+    }
+
+    setIsTransferringBulk(true);
+    try {
+      await api.leads.transferirLeadsEmMassa(selectedLeads, bulkCorretorId);
+      addToast(`${selectedLeads.length} lead(s) transferido(s) para ${nomeDestino} com sucesso!`, 'success');
+      setBulkCorretorId('');
+      fetchLeads();
+    } catch (err) {
+      // Fallback caso o servidor esteja reiniciando na rota antiga
+      let successCount = 0;
+      try {
+        for (const id of selectedLeads) {
+          await api.leads.transferirLead(id, bulkCorretorId);
+          successCount++;
+        }
+        addToast(`${successCount} lead(s) transferido(s) para ${nomeDestino} com sucesso!`, 'success');
+        setBulkCorretorId('');
+        fetchLeads();
+      } catch (fallbackErr) {
+        addToast(fallbackErr.message || `Erro ao transferir leads (${successCount} concluídos).`, 'error');
+        fetchLeads();
+      }
+    } finally {
+      setIsTransferringBulk(false);
     }
   };
 
@@ -239,18 +280,60 @@ export default function Leads() {
 
       {selectedLeads.length > 0 && (
         <div style={{ 
-          display: 'flex', alignItems: 'center', gap: '15px', 
+          display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
           backgroundColor: 'var(--color-surface-hover)', padding: '12px 20px', 
           borderRadius: '8px', marginBottom: '20px', border: '1px solid var(--color-border)' 
         }}>
           <span style={{ fontWeight: 600 }}>{selectedLeads.length} lead(s) selecionado(s)</span>
           <div style={{ flex: 1 }}></div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <select
+              value={bulkCorretorId}
+              onChange={(e) => setBulkCorretorId(e.target.value)}
+              disabled={isTransferringBulk || isDeletingBulk}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid var(--color-border, #ddd)',
+                backgroundColor: 'var(--color-surface, #1e1e1e)',
+                color: 'var(--color-text, #fff)',
+                fontWeight: 500,
+                minWidth: '220px'
+              }}
+            >
+              <option value="">-- Transferir para Corretor --</option>
+              {corretores.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={handleBulkTransfer}
+              disabled={!bulkCorretorId || isTransferringBulk || isDeletingBulk}
+              style={{
+                backgroundColor: bulkCorretorId ? '#3498db' : '#555',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: (!bulkCorretorId || isTransferringBulk || isDeletingBulk) ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+                opacity: (!bulkCorretorId || isTransferringBulk || isDeletingBulk) ? 0.7 : 1
+              }}
+            >
+              {isTransferringBulk ? 'Transferindo...' : 'Transferir Selecionados'}
+            </button>
+          </div>
+
           <button 
             onClick={handleBulkDelete}
-            disabled={isDeletingBulk}
+            disabled={isDeletingBulk || isTransferringBulk}
             style={{
               backgroundColor: '#e74c3c', color: 'white', border: 'none', 
-              padding: '8px 16px', borderRadius: '4px', cursor: isDeletingBulk ? 'not-allowed' : 'pointer',
+              padding: '8px 16px', borderRadius: '4px', cursor: (isDeletingBulk || isTransferringBulk) ? 'not-allowed' : 'pointer',
               fontWeight: 600
             }}
           >
@@ -277,6 +360,7 @@ export default function Leads() {
                   </th>
                   <th>Nome</th>
                   <th>Telefone</th>
+                  <th>Corretor</th>
                   <th>Origem</th>
                   <th>Etapa</th>
                   <th>Empreendimento</th>
@@ -318,6 +402,9 @@ export default function Leads() {
                       </div>
                     </td>
                     <td>{lead.telefone}</td>
+                    <td style={{ fontSize: '0.85rem', color: lead.corretor_nome ? 'var(--color-text)' : 'var(--color-text-tertiary)' }}>
+                      {lead.corretor_nome || 'Sem corretor'}
+                    </td>
                     <td>
                       <span style={{ 
                         backgroundColor: getOrigemColor(lead.origem), color: '#fff', 
@@ -357,7 +444,7 @@ export default function Leads() {
                 ))}
                 {filteredLeads.length === 0 && (
                   <tr>
-                    <td colSpan="7" style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>Nenhum lead encontrado.</td>
+                    <td colSpan="8" style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>Nenhum lead encontrado.</td>
                   </tr>
                 )}
               </tbody>

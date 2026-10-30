@@ -125,6 +125,54 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+router.post('/bulk-transfer', authenticateToken, async (req, res) => {
+  const db = getDb();
+  try {
+    const { lead_ids, corretor_id } = req.body;
+    if (!Array.isArray(lead_ids) || lead_ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'Selecione ao menos um lead para transferir.' });
+    }
+
+    let nomeNovoCorretor = 'Nenhum Corretor';
+    if (corretor_id) {
+      const novoCorretor = await db.queryOne('SELECT nome FROM usuarios WHERE id = ?', [corretor_id]);
+      if (novoCorretor) nomeNovoCorretor = novoCorretor.nome;
+    }
+
+    let transferredCount = 0;
+    for (const leadId of lead_ids) {
+      const lead = await db.queryOne('SELECT id, nome, corretor_id FROM leads WHERE id = ?', [leadId]);
+      if (!lead) continue;
+      if (req.user.role === 'corretor' && lead.corretor_id !== req.user.id) continue;
+
+      await db.execute(
+        'UPDATE leads SET corretor_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [corretor_id || null, leadId]
+      );
+
+      await db.execute(
+        `INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) VALUES (?, ?, ?, 'sistema', ?)`,
+        [uuidv4(), leadId, req.user.id, `Lead transferido em massa para ${nomeNovoCorretor} por ${req.user.nome}.`]
+      );
+      transferredCount++;
+    }
+
+    if (corretor_id && corretor_id !== req.user.id && transferredCount > 0) {
+      sendPushToUser(corretor_id, {
+        title: `📋 ${transferredCount} Lead(s) Transferido(s) para Você!`,
+        body: `${req.user.nome} transferiu ${transferredCount} lead(s) para a sua carteira.`,
+        icon: '/logo_icon.png',
+        badge: '/logo_icon.png',
+        data: { url: '/leads' }
+      }).catch(err => console.error('[Push Transferência em Massa]:', err));
+    }
+
+    res.json({ success: true, data: { transferredCount, nomeNovoCorretor } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.put('/:id/corretor', authenticateToken, async (req, res) => {
   const db = getDb();
   try {
