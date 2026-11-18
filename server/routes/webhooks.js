@@ -206,12 +206,21 @@ const handleIncomingLead = async (leadData) => {
       if (emp) empreendimentoId = emp.id;
       finalCampanha = 'Residenciais';
     } else {
-      // Fallback inteligente por estrutura das perguntas do formulário e DDD caso a Graph API não tenha retornado a tempo
+      // Se veio pelo link exclusivo da sala (/meta/salinas ou /meta/santo_amaro) e o Make enviou apenas "Meta Ads" sem especificar outro produto
+      const salaNorm = (leadData.sala || '').toLowerCase();
       const obsText = (observacoes || '').toLowerCase();
       const digits = (telefone || '').replace(/\D/g, '');
       const ddd = digits.startsWith('5555') ? digits.slice(4, 6) : (digits.startsWith('55') ? digits.slice(2, 4) : digits.slice(0, 2));
 
-      if (obsText.includes('preferência de contato: whatsapp') || obsText.includes('preferência de contato: ligação') || ddd === '98' || ddd === '99') {
+      if (salaNorm.includes('salinas')) {
+        const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Salinas%'");
+        if (emp) empreendimentoId = emp.id;
+        finalCampanha = 'Salinas';
+      } else if (salaNorm.includes('amaro')) {
+        const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Amaro%'");
+        if (emp) empreendimentoId = emp.id;
+        finalCampanha = 'Santo Amaro';
+      } else if (obsText.includes('preferência de contato: whatsapp') || obsText.includes('preferência de contato: ligação') || ddd === '98' || ddd === '99') {
         const emp = await db.queryOne("SELECT id FROM empreendimentos WHERE nome ILIKE '%Amaro%'");
         if (emp) empreendimentoId = emp.id;
         finalCampanha = 'Santo Amaro';
