@@ -73,7 +73,7 @@ router.post('/google', async (req, res) => {
 
 router.post('/register', authenticateToken, requireRole('gestor'), async (req, res) => {
   const db = getDb();
-  const { nome, email, telefone, senha, role } = req.body;
+  const { nome, email, telefone, senha, role, sala } = req.body;
   if (!nome || !email || !senha) return res.status(400).json({ success: false, error: 'Campos obrigatórios ausentes' });
 
   try {
@@ -83,12 +83,13 @@ router.post('/register', authenticateToken, requireRole('gestor'), async (req, r
     const id = uuidv4();
     const hash = bcrypt.hashSync(senha, 10);
     const userRole = role || 'corretor';
+    const userSala = ['sao_luis', 'salinas', 'santo_amaro'].includes(sala) ? sala : 'sao_luis';
 
     await db.execute(`
-      INSERT INTO usuarios (id, nome, email, telefone, senha_hash, role, disponivel_rodizio)
-      VALUES (?, ?, ?, ?, ?, ?, 0)
-    `, [id, nome, email, telefone || null, hash, userRole]);
-    res.json({ success: true, data: { id, nome, email, role: userRole } });
+      INSERT INTO usuarios (id, nome, email, telefone, senha_hash, role, sala, disponivel_rodizio, peso_salinas, peso_santo_amaro)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, 1)
+    `, [id, nome, email, telefone || null, hash, userRole, userSala]);
+    res.json({ success: true, data: { id, nome, email, role: userRole, sala: userSala } });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ success: false, error: 'Erro ao criar usuário: ' + error.message });
@@ -98,7 +99,7 @@ router.post('/register', authenticateToken, requireRole('gestor'), async (req, r
 router.get('/me', authenticateToken, async (req, res) => {
   const db = getDb();
   try {
-    const user = await db.queryOne('SELECT id, nome, email, telefone, role, ativo, avatar_url, meta_vgv_pessoal, pausado_rodizio, disponivel_rodizio, wallpaper_url, wallpaper_position FROM usuarios WHERE id = ?', [req.user.id]);
+    const user = await db.queryOne("SELECT id, nome, email, telefone, role, COALESCE(sala, 'sao_luis') as sala, ativo, avatar_url, meta_vgv_pessoal, pausado_rodizio, disponivel_rodizio, wallpaper_url, wallpaper_position FROM usuarios WHERE id = ?", [req.user.id]);
     res.json({ success: true, data: user });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

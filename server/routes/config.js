@@ -29,7 +29,13 @@ router.put('/', authenticateToken, requireRole('gestor'), async (req, res) => {
   const entries = Object.entries(req.body);
   try {
     for (const [chave, valor] of entries) {
-      await db.execute("UPDATE configuracoes SET valor = ? WHERE chave = ?", [valor.toString(), chave]);
+      if (valor === undefined || valor === null) continue;
+      const existing = await db.queryOne("SELECT chave FROM configuracoes WHERE chave = ?", [chave]);
+      if (existing) {
+        await db.execute("UPDATE configuracoes SET valor = ? WHERE chave = ?", [valor.toString(), chave]);
+      } else {
+        await db.execute("INSERT INTO configuracoes (chave, valor) VALUES (?, ?)", [chave, valor.toString()]);
+      }
     }
     res.json({ success: true, data: 'Atualizado' });
   } catch (err) {

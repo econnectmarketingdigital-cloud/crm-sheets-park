@@ -1,18 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { SALAS, getSalaBadge } from '../lib/utils';
+import { useToast } from '../contexts/ToastContext';
 
 const Rodizio = () => {
-  const [config, setConfig] = useState(null);
+  const [config, setConfig] = useState({
+    rodizio_ativo: 1,
+    sla_redistribuicao_minutos: 15,
+    sala_sao_luis_ativa: 1,
+    sala_salinas_ativa: 1,
+    sala_santo_amaro_ativa: 1
+  });
   const [corretores, setCorretores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [salaFilter, setSalaFilter] = useState('');
+  const { addToast } = useToast();
 
   const fetchDados = async () => {
     try {
       setLoading(true);
-      const conf = await api.config.getConfig();
-      const corrs = await api.rodizio.getCorretoresRodizio();
-      setConfig(conf);
-      setCorretores(corrs);
+      const [confRaw, corrs] = await Promise.all([
+        api.config.getConfig(),
+        api.rodizio.getCorretoresRodizio()
+      ]);
+
+      const parsedConf = {
+        rodizio_ativo: 1,
+        sla_redistribuicao_minutos: 15,
+        sala_sao_luis_ativa: 1,
+        sala_salinas_ativa: 1,
+        sala_santo_amaro_ativa: 1
+      };
+
+      if (Array.isArray(confRaw)) {
+        confRaw.forEach(item => {
+          if (item.chave === 'rodizio_ativo') {
+            parsedConf.rodizio_ativo = (item.valor === '1' || item.valor === 'true') ? 1 : 0;
+          } else if (item.chave === 'sla_redistribuicao_minutos') {
+            parsedConf.sla_redistribuicao_minutos = parseInt(item.valor, 10) || 15;
+          } else if (['sala_sao_luis_ativa', 'sala_salinas_ativa', 'sala_santo_amaro_ativa'].includes(item.chave)) {
+            parsedConf[item.chave] = (item.valor === '1' || item.valor === 'true') ? 1 : 0;
+          }
+        });
+      } else if (confRaw && typeof confRaw === 'object') {
+        Object.assign(parsedConf, confRaw);
+      }
+
+      setConfig(parsedConf);
+      setCorretores(corrs || []);
     } catch (error) {
       console.error('Erro ao buscar dados do rodízio:', error);
     } finally {
@@ -59,9 +94,60 @@ const Rodizio = () => {
     try {
       await api.rodizio.updatePesosCorretor(id, { [field]: numVal });
       setCorretores(prev => prev.map(c => c.id === id ? { ...c, [field]: numVal } : c));
+      addToast('Fila do corretor atualizada!', 'success');
     } catch (error) {
       console.error('Erro ao atualizar praça/peso:', error);
-      alert('Erro ao atualizar praça/peso');
+      addToast('Erro ao atualizar praça/peso', 'error');
+    }
+  };
+
+  const handleSalaChange = async (id, novaSala) => {
+    try {
+      await api.rodizio.updatePesosCorretor(id, { sala: novaSala });
+      setCorretores(prev => prev.map(c => c.id === id ? { ...c, sala: novaSala } : c));
+      const badge = getSalaBadge(novaSala);
+      addToast(`Corretor movido para ${badge.name}!`, 'success');
+    } catch (error) {
+      console.error('Erro ao atualizar sala:', error);
+      addToast('Erro ao atualizar sala do corretor', 'error');
+    }
+  };
+
+  const handleToggleSalaAtiva = async (salaKey, isAtivaAtual) => {
+    const novoStatus = !isAtivaAtual;
+    const configKey = `sala_${salaKey}_ativa`;
+    try {
+      await api.rodizio.updateSalaPlantao(salaKey, { ativa: novoStatus });
+      setConfig(prev => ({ ...prev, [configKey]: novoStatus ? 1 : 0 }));
+      const badge = getSalaBadge(salaKey);
+      addToast(`${badge.name} ${novoStatus ? 'ATIVADA' : 'PAUSADA'} no rodízio!`, 'success');
+    } catch (error) {
+      console.error('Erro ao alterar status da sala:', error);
+      addToast('Erro ao alterar status da sala', 'error');
+    }
+  };
+
+  const handleBulkPlantaoSala = async (salaKey, disponivel) => {
+    const badge = getSalaBadge(salaKey);
+    try {
+      await api.rodizio.updateSalaPlantao(salaKey, { disponivel, ativa: disponivel ? true : undefined });
+      setCorretores(prev => prev.map(c => (c.sala || 'sao_luis') === salaKey ? {
+        ...c,
+        disponivel_rodizio: disponivel ? 1 : 0,
+        pausado_rodizio: disponivel ? 0 : c.pausado_rodizio
+      } : c));
+      if (disponivel) {
+        setConfig(prev => ({ ...prev, [`sala_${salaKey}_ativa`]: 1 }));
+      }
+      addToast(
+        disponivel
+          ? `Todos os corretores da ${badge.name} foram colocados no plantão!`
+          : `Plantão de todos os corretores da ${badge.name} foi pausado!`,
+        'success'
+      );
+    } catch (error) {
+      console.error('Erro ao atualizar plantão da sala:', error);
+      addToast('Erro ao atualizar plantão da sala', 'error');
     }
   };
 
@@ -72,9 +158,111 @@ const Rodizio = () => {
   return (
     <div className="page-container" style={{ padding: '2rem' }}>
       <header style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Gerenciamento de Rodízio</h1>
-        <p className="text-secondary">Gerencie a distribuição automática de leads por praça (Salinas e Santo Amaro) e a disponibilidade da equipe.</p>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Gerenciamento de Rodízio por Sala & Produto</h1>
+        <p className="text-secondary">Ative ou pause salas inteiras com 1 clique (São Luís, Salinas e Santo Amaro) e defina quais produtos cada corretor atende.</p>
       </header>
+
+      <section style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1rem' }}>Controle Rápido por Sala / Equipe</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+          {SALAS.map(sala => {
+            const configKey = `sala_${sala.key}_ativa`;
+            const isSalaAtiva = config?.[configKey] !== 0;
+            const corretoresDaSala = corretores.filter(c => (c.sala || 'sao_luis') === sala.key);
+            const noPlantaoCount = corretoresDaSala.filter(c => c.disponivel_rodizio === 1 && c.pausado_rodizio === 0).length;
+
+            return (
+              <div
+                key={sala.key}
+                className="card"
+                style={{
+                  padding: '1.25rem',
+                  border: isSalaAtiva ? `1.5px solid ${sala.color}` : '1px solid var(--color-border)',
+                  opacity: isSalaAtiva ? 1 : 0.72,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: sala.color }}>{sala.label}</div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                      {corretoresDaSala.length} corretor(es) cadastrado(s) • <strong>{noPlantaoCount} no plantão</strong>
+                    </div>
+                  </div>
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    backgroundColor: isSalaAtiva ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.18)',
+                    color: isSalaAtiva ? '#10B981' : '#EF4444',
+                    border: isSalaAtiva ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {isSalaAtiva ? '● SALA ATIVA' : '⏸ SALA PAUSADA'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => handleToggleSalaAtiva(sala.key, isSalaAtiva)}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      border: 'none',
+                      backgroundColor: isSalaAtiva ? '#ef4444' : '#10b981',
+                      color: '#fff'
+                    }}
+                  >
+                    {isSalaAtiva ? 'Pausar Sala Inteira' : 'Ativar Sala no Rodízio'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem' }}>
+                  <button
+                    onClick={() => handleBulkPlantaoSala(sala.key, true)}
+                    style={{
+                      flex: 1,
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                      color: '#10B981',
+                      border: '1px solid rgba(16, 185, 129, 0.3)'
+                    }}
+                  >
+                    ✓ Colocar Todos no Plantão
+                  </button>
+                  <button
+                    onClick={() => handleBulkPlantaoSala(sala.key, false)}
+                    style={{
+                      flex: 1,
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: '#EF4444',
+                      border: '1px solid rgba(239, 68, 68, 0.3)'
+                    }}
+                  >
+                    ✕ Tirar Todos do Plantão
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {config && (
         <section className="card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
@@ -126,32 +314,100 @@ const Rodizio = () => {
       )}
 
       <section className="card" style={{ padding: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Equipe no Rodízio por Praça</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Corretores por Sala & Filas de Produto</h2>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setSalaFilter('')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                border: salaFilter === '' ? '1px solid #00F5A0' : '1px solid var(--color-border)',
+                backgroundColor: salaFilter === '' ? 'rgba(0, 245, 160, 0.15)' : 'transparent',
+                color: salaFilter === '' ? '#00F5A0' : 'var(--color-text-secondary)'
+              }}
+            >
+              Todas as Salas ({corretores.length})
+            </button>
+            {SALAS.map(s => {
+              const count = corretores.filter(c => (c.sala || 'sao_luis') === s.key).length;
+              const active = salaFilter === s.key;
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => setSalaFilter(s.key)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    border: active ? `1px solid ${s.color}` : '1px solid var(--color-border)',
+                    backgroundColor: active ? s.bg : 'transparent',
+                    color: active ? s.color : 'var(--color-text-secondary)'
+                  }}
+                >
+                  {s.shortLabel} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
         
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                 <th style={{ padding: '1rem', fontWeight: '600' }}>Corretor</th>
-                <th style={{ padding: '1rem', fontWeight: '600' }}>🌊 Fila Salinas</th>
-                <th style={{ padding: '1rem', fontWeight: '600' }}>🌴 Fila Santo Amaro</th>
+                <th style={{ padding: '1rem', fontWeight: '600' }}>Sala / Equipe</th>
+                <th style={{ padding: '1rem', fontWeight: '600' }}>🌊 Produto Salinas</th>
+                <th style={{ padding: '1rem', fontWeight: '600' }}>🌴 Produto Santo Amaro</th>
                 <th style={{ padding: '1rem', fontWeight: '600' }}>Status (Online/Offline)</th>
                 <th style={{ padding: '1rem', fontWeight: '600' }}>Plantão do Dia</th>
                 <th style={{ padding: '1rem', fontWeight: '600' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {corretores.map((corretor) => {
+              {corretores
+                .filter(c => !salaFilter || (c.sala || 'sao_luis') === salaFilter)
+                .map((corretor) => {
                 const isOnline = corretor.pausado_rodizio === 0;
                 const isDisponivel = corretor.disponivel_rodizio === 1;
                 const pesoSalinas = corretor.peso_salinas ?? 0;
                 const pesoSantoAmaro = corretor.peso_santo_amaro ?? 0;
+                const salaBadge = getSalaBadge(corretor.sala);
 
                 return (
                   <tr key={corretor.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <td style={{ padding: '1rem' }}>
                       <div style={{ fontWeight: '600' }}>{corretor.nome}</div>
                       <div className="text-secondary" style={{ fontSize: '0.85rem' }}>{corretor.email}</div>
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <select
+                        className="input"
+                        value={corretor.sala || 'sao_luis'}
+                        onChange={(e) => handleSalaChange(corretor.id, e.target.value)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          border: `1px solid ${salaBadge.border}`,
+                          backgroundColor: salaBadge.bg,
+                          color: salaBadge.color,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {SALAS.map(s => (
+                          <option key={s.key} value={s.key} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td style={{ padding: '1rem' }}>
                       <select
@@ -228,10 +484,10 @@ const Rodizio = () => {
                 );
               })}
               
-              {corretores.length === 0 && (
+              {corretores.filter(c => !salaFilter || (c.sala || 'sao_luis') === salaFilter).length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-secondary)' }}>
-                    Nenhum corretor encontrado.
+                  <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-secondary)' }}>
+                    Nenhum corretor encontrado nesta sala.
                   </td>
                 </tr>
               )}

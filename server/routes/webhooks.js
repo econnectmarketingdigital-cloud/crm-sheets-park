@@ -276,7 +276,7 @@ const handleIncomingLead = async (leadData) => {
       return;
     }
 
-    const corretorId = await getNextCorretor(origem, finalCampanha) || null;
+    const corretorId = await getNextCorretor(origem, finalCampanha, leadData.sala) || null;
     const id = uuidv4();
     
     await db.execute(`

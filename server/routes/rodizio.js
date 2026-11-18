@@ -21,7 +21,7 @@ router.put('/config', authenticateToken, requireRole('gestor'), async (req, res)
 router.get('/corretores', authenticateToken, async (req, res) => {
   const db = getDb();
   const corretores = await db.query(`
-    SELECT id, nome, email, role, disponivel_rodizio, pausado_rodizio, ativo,
+    SELECT id, nome, email, role, COALESCE(sala, 'sao_luis') as sala, disponivel_rodizio, pausado_rodizio, ativo,
            COALESCE(peso_salinas, 0) as peso_salinas,
            COALESCE(peso_santo_amaro, 1) as peso_santo_amaro
     FROM usuarios
@@ -33,14 +33,47 @@ router.get('/corretores', authenticateToken, async (req, res) => {
 
 router.put('/corretor/:id/pesos', authenticateToken, requireRole('gestor'), async (req, res) => {
   const db = getDb();
-  const { peso_salinas, peso_santo_amaro } = req.body;
+  const { peso_salinas, peso_santo_amaro, sala } = req.body;
   if (peso_salinas !== undefined) {
     await db.execute("UPDATE usuarios SET peso_salinas = ? WHERE id = ?", [parseInt(peso_salinas, 10) || 0, req.params.id]);
   }
   if (peso_santo_amaro !== undefined) {
     await db.execute("UPDATE usuarios SET peso_santo_amaro = ? WHERE id = ?", [parseInt(peso_santo_amaro, 10) || 0, req.params.id]);
   }
-  res.json({ success: true, data: 'Divisão de praças atualizada' });
+  if (sala && ['sao_luis', 'salinas', 'santo_amaro'].includes(sala)) {
+    await db.execute("UPDATE usuarios SET sala = ? WHERE id = ?", [sala, req.params.id]);
+  }
+  res.json({ success: true, data: 'Divisão de praças/salas atualizada' });
+});
+
+router.put('/sala/:sala/plantao', authenticateToken, requireRole('gestor'), async (req, res) => {
+  const db = getDb();
+  const { sala } = req.params;
+  if (!['sao_luis', 'salinas', 'santo_amaro'].includes(sala)) {
+    return res.status(400).json({ success: false, error: 'Sala inválida' });
+  }
+  const { disponivel, ativa } = req.body;
+  try {
+    if (ativa !== undefined) {
+      const chave = `sala_${sala}_ativa`;
+      const val = ativa ? '1' : '0';
+      const existing = await db.queryOne('SELECT chave FROM configuracoes WHERE chave = ?', [chave]);
+      if (existing) {
+        await db.execute('UPDATE configuracoes SET valor = ? WHERE chave = ?', [val, chave]);
+      } else {
+        await db.execute('INSERT INTO configuracoes (chave, valor) VALUES (?, ?)', [chave, val]);
+      }
+    }
+    if (disponivel !== undefined) {
+      await db.execute(
+        "UPDATE usuarios SET disponivel_rodizio = ?, pausado_rodizio = CASE WHEN ? = 1 THEN 0 ELSE pausado_rodizio END WHERE COALESCE(sala, 'sao_luis') = ? AND ativo = 1",
+        [disponivel ? 1 : 0, disponivel ? 1 : 0, sala]
+      );
+    }
+    res.json({ success: true, data: 'Sala atualizada com sucesso' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 router.put('/corretor/:id/pausar', authenticateToken, async (req, res) => {

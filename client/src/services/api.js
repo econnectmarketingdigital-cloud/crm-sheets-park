@@ -87,6 +87,7 @@ export default {
     pausarCorretor: (id, pausar) => fetchWithAuth(`/rodizio/corretor/${id}/pausar`, { method: 'PUT', body: JSON.stringify({ pausar }) }),
     toggleDisponivel: (id, disponivel) => fetchWithAuth(`/rodizio/corretor/${id}/disponivel`, { method: 'PUT', body: JSON.stringify({ disponivel }) }),
     updatePesosCorretor: (id, data) => fetchWithAuth(`/rodizio/corretor/${id}/pesos`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateSalaPlantao: (sala, data) => fetchWithAuth(`/rodizio/sala/${sala}/plantao`, { method: 'PUT', body: JSON.stringify(data) }),
   },
   config: {
     getConfig: () => fetchWithAuth('/config'),
@@ -101,6 +102,7 @@ export default {
     getUsuarios: () => fetchWithAuth('/usuarios'),
     getUsuario: (id) => fetchWithAuth(`/usuarios/${id}`),
     updateUsuario: (id, data) => fetchWithAuth(`/usuarios/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateSalaUsuario: (id, sala) => fetchWithAuth(`/usuarios/${id}/sala`, { method: 'PUT', body: JSON.stringify({ sala }) }),
     toggleUsuarioAtivo: (id, data) => fetchWithAuth(`/usuarios/${id}/ativo`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteUsuario: (id) => fetchWithAuth(`/usuarios/${id}`, { method: 'DELETE' }),
   },

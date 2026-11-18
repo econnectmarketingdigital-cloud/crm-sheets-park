@@ -14,7 +14,7 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const { etapa, origem, corretor_id, limit = 1000, offset = 0 } = req.query;
     let query = `
-      SELECT l.*, e.nome as empreendimento_nome, u.nome as corretor_nome
+      SELECT l.*, e.nome as empreendimento_nome, u.nome as corretor_nome, COALESCE(u.sala, 'sao_luis') as corretor_sala
       FROM leads l
       LEFT JOIN empreendimentos e ON l.empreendimento_interesse_id = e.id
       LEFT JOIN usuarios u ON l.corretor_id = u.id

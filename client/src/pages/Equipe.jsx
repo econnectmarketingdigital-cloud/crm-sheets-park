@@ -4,16 +4,18 @@ import { FiUserPlus, FiUser, FiPower, FiTrash2 } from 'react-icons/fi';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { SALAS, getSalaBadge } from '../lib/utils';
 
 export default function Equipe() {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [salaFilter, setSalaFilter] = useState('');
   const { user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
   
-  const [novoCorretor, setNovoCorretor] = useState({ nome: '', email: '', senha: '', role: 'corretor' });
+  const [novoCorretor, setNovoCorretor] = useState({ nome: '', email: '', senha: '', role: 'corretor', sala: 'salinas' });
 
   useEffect(() => {
     fetchUsuarios();
@@ -52,15 +54,27 @@ export default function Equipe() {
         nome: novoCorretor.nome.trim(), 
         email: novoCorretor.email.trim(), 
         senha: novoCorretor.senha, 
-        role: novoCorretor.role 
+        role: novoCorretor.role,
+        sala: novoCorretor.sala
       });
       addToast('Membro de equipe adicionado com sucesso!', 'success');
-      setNovoCorretor({ nome: '', email: '', senha: '', role: 'corretor' });
+      setNovoCorretor({ nome: '', email: '', senha: '', role: 'corretor', sala: novoCorretor.sala });
       fetchUsuarios();
     } catch (err) {
       addToast(err.message || 'Erro ao adicionar membro de equipe', 'error');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleChangeSala = async (id, novaSala) => {
+    try {
+      await api.usuarios.updateSalaUsuario(id, novaSala);
+      setUsuarios(prev => prev.map(u => u.id === id ? { ...u, sala: novaSala } : u));
+      const badge = getSalaBadge(novaSala);
+      addToast(`Corretor vinculado à ${badge.name}!`, 'success');
+    } catch (err) {
+      addToast(err.message || 'Erro ao alterar sala do corretor', 'error');
     }
   };
 
@@ -129,6 +143,19 @@ export default function Equipe() {
               />
             </div>
             <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>Sala / Equipe</label>
+              <select
+                value={novoCorretor.sala}
+                onChange={e => setNovoCorretor({...novoCorretor, sala: e.target.value})}
+                className="input"
+                style={{ width: '100%', fontWeight: 600 }}
+              >
+                {SALAS.map(s => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>Tipo de Acesso</label>
               <select
                 value={novoCorretor.role}
@@ -152,19 +179,64 @@ export default function Equipe() {
         </div>
       )}
 
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setSalaFilter('')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+            border: salaFilter === '' ? '1px solid #00F5A0' : '1px solid var(--color-border)',
+            backgroundColor: salaFilter === '' ? 'rgba(0, 245, 160, 0.15)' : 'var(--color-surface)',
+            color: salaFilter === '' ? '#00F5A0' : 'var(--color-text-secondary)'
+          }}
+        >
+          Todas as Salas ({usuarios.length})
+        </button>
+        {SALAS.map(s => {
+          const count = usuarios.filter(u => (u.sala || 'sao_luis') === s.key).length;
+          const active = salaFilter === s.key;
+          return (
+            <button
+              key={s.key}
+              onClick={() => setSalaFilter(s.key)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                border: active ? `1px solid ${s.color}` : '1px solid var(--color-border)',
+                backgroundColor: active ? s.bg : 'var(--color-surface)',
+                color: active ? s.color : 'var(--color-text-secondary)'
+              }}
+            >
+              {s.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'rgba(0,0,0,0.2)' }}>
                 <th style={{ padding: '1rem 1.5rem', textAlign: 'left' }}>Usuário</th>
+                <th style={{ padding: '1rem 1.5rem', textAlign: 'left' }}>Sala / Equipe</th>
                 <th style={{ padding: '1rem 1.5rem', textAlign: 'left' }}>Acesso</th>
                 <th style={{ padding: '1rem 1.5rem', textAlign: 'left' }}>Status Plantão</th>
                 {user?.role === 'gestor' && <th style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>Ações</th>}
               </tr>
             </thead>
             <tbody>
-              {usuarios.map(u => (
+              {usuarios
+                .filter(u => !salaFilter || (u.sala || 'sao_luis') === salaFilter)
+                .map(u => {
+                  const salaBadge = getSalaBadge(u.sala);
+                  return (
                 <tr key={u.id} style={{ opacity: u.ativo ? 1 : 0.5, borderBottom: '1px solid var(--color-border)' }}>
                   <td style={{ padding: '1rem 1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate(`/equipe/${u.id}`)}>
@@ -188,6 +260,38 @@ export default function Equipe() {
                         <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>{u.email}</div>
                       </div>
                     </div>
+                  </td>
+                  <td style={{ padding: '1rem 1.5rem' }}>
+                    {user?.role === 'gestor' ? (
+                      <select
+                        value={u.sala || 'sao_luis'}
+                        onChange={(e) => handleChangeSala(u.id, e.target.value)}
+                        className="input"
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          backgroundColor: salaBadge.bg,
+                          color: salaBadge.color,
+                          border: `1px solid ${salaBadge.border}`,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {SALAS.map(s => (
+                          <option key={s.key} value={s.key} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span style={{
+                        padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700,
+                        backgroundColor: salaBadge.bg, color: salaBadge.color, border: `1px solid ${salaBadge.border}`
+                      }}>
+                        {salaBadge.label}
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: '1rem 1.5rem' }}>
                     <span style={{ 
@@ -230,10 +334,11 @@ export default function Equipe() {
                     </td>
                   )}
                 </tr>
-              ))}
+              );
+              })}
               {usuarios.length === 0 && (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-secondary)' }}>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-secondary)' }}>
                     Nenhum usuário cadastrado.
                   </td>
                 </tr>

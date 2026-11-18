@@ -41,3 +41,38 @@ export function getCampanhaBadge(campanha, empNome) {
   const cleanLabel = rawText.replace(/campanha\s*[-_:]?\s*/i, '').trim();
   return { label: `🏷️ ${cleanLabel}`, bg: 'rgba(255, 255, 255, 0.08)', color: '#E2E8F0', border: 'rgba(255, 255, 255, 0.2)' };
 }
+
+export const SALAS = [
+  {
+    key: 'sao_luis',
+    label: '🏛️ Sala São Luís (MA)',
+    shortLabel: '🏛️ São Luís',
+    name: 'Sala São Luís',
+    color: '#A78BFA',
+    bg: 'rgba(167, 139, 250, 0.14)',
+    border: 'rgba(167, 139, 250, 0.38)'
+  },
+  {
+    key: 'salinas',
+    label: '🌊 Sala Salinas (PA)',
+    shortLabel: '🌊 Salinas',
+    name: 'Sala Salinas',
+    color: '#38BDF8',
+    bg: 'rgba(56, 189, 248, 0.14)',
+    border: 'rgba(56, 189, 248, 0.38)'
+  },
+  {
+    key: 'santo_amaro',
+    label: '🌴 Sala Santo Amaro (MA)',
+    shortLabel: '🌴 Santo Amaro',
+    name: 'Sala Santo Amaro',
+    color: '#10B981',
+    bg: 'rgba(16, 185, 129, 0.14)',
+    border: 'rgba(16, 185, 129, 0.38)'
+  }
+];
+
+export function getSalaBadge(salaKey) {
+  const found = SALAS.find(s => s.key === (salaKey || 'sao_luis'));
+  return found || SALAS[0];
+}

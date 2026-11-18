@@ -4,7 +4,7 @@ import api from '../services/api';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { FiPlus, FiSearch, FiFilter } from 'react-icons/fi';
-import { getCampanhaBadge } from '../lib/utils';
+import { getCampanhaBadge, SALAS, getSalaBadge } from '../lib/utils';
 
 const getEtapaColor = (etapa) => {
   const colors = {
@@ -59,6 +59,7 @@ export default function Leads() {
   const [etapaFilter, setEtapaFilter] = useState(searchParams.get('etapa') || '');
   const [origemFilter, setOrigemFilter] = useState('');
   const [corretorFilter, setCorretorFilter] = useState(searchParams.get('corretor_id') || '');
+  const [salaFilter, setSalaFilter] = useState(searchParams.get('sala') || '');
   const [produtoFilter, setProdutoFilter] = useState('');
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -101,11 +102,12 @@ export default function Leads() {
       const matchesEtapa = etapaFilter ? lead.etapa === etapaFilter : true;
       const matchesOrigem = origemFilter ? lead.origem === origemFilter : true;
       const matchesCorretor = corretorFilter ? lead.corretor_id === corretorFilter : true;
+      const matchesSala = salaFilter ? (lead.corretor_sala || 'sao_luis') === salaFilter : true;
       const matchesProduto = produtoFilter 
         ? `${lead.empreendimento_nome || ''} ${lead.campanha || ''}`.toLowerCase().includes(produtoFilter.toLowerCase())
         : true;
 
-      return matchesSearch && matchesEtapa && matchesOrigem && matchesCorretor && matchesProduto;
+      return matchesSearch && matchesEtapa && matchesOrigem && matchesCorretor && matchesSala && matchesProduto;
     })
     .sort((a, b) => {
       const timeA = new Date(a.reengajado_em || a.created_at).getTime();
@@ -245,6 +247,18 @@ export default function Leads() {
           <option value="google_ads">Google Ads</option>
           <option value="manual">Manual</option>
         </select>
+        {(isGestor || user?.role === 'gestor') && (
+          <select
+            value={salaFilter}
+            onChange={(e) => setSalaFilter(e.target.value)}
+            style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', fontWeight: 600 }}
+          >
+            <option value="">Todas as Salas</option>
+            {SALAS.map(s => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+          </select>
+        )}
         {(isGestor || user?.role === 'gestor') && corretores.length > 0 && (
           <select 
             value={corretorFilter} 
@@ -253,11 +267,16 @@ export default function Leads() {
           >
             <option value="">Todos os Corretores</option>
             <option value={user?.id}>Meus Leads (Você)</option>
-            {corretores.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.nome} {c.id === user?.id ? '(Você)' : ''}
-              </option>
-            ))}
+            {corretores
+              .filter(c => !salaFilter || (c.sala || 'sao_luis') === salaFilter)
+              .map(c => {
+                const sb = getSalaBadge(c.sala);
+                return (
+                  <option key={c.id} value={c.id}>
+                    {c.nome} ({sb.shortLabel}) {c.id === user?.id ? '(Você)' : ''}
+                  </option>
+                );
+              })}
           </select>
         )}
         <select 
@@ -303,11 +322,14 @@ export default function Leads() {
               }}
             >
               <option value="">-- Transferir para Corretor --</option>
-              {corretores.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
+              {corretores.map(c => {
+                const sb = getSalaBadge(c.sala);
+                return (
+                  <option key={c.id} value={c.id}>
+                    {c.nome} — {sb.shortLabel}
+                  </option>
+                );
+              })}
             </select>
 
             <button
@@ -403,7 +425,28 @@ export default function Leads() {
                     </td>
                     <td>{lead.telefone}</td>
                     <td style={{ fontSize: '0.85rem', color: lead.corretor_nome ? 'var(--color-text)' : 'var(--color-text-tertiary)' }}>
-                      {lead.corretor_nome || 'Sem corretor'}
+                      {lead.corretor_nome ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span>{lead.corretor_nome}</span>
+                          {(() => {
+                            const sb = getSalaBadge(lead.corretor_sala);
+                            return (
+                              <span style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: sb.bg,
+                                color: sb.color,
+                                border: `1px solid ${sb.border}`,
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {sb.shortLabel}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      ) : 'Sem corretor'}
                     </td>
                     <td>
                       <span style={{ 
