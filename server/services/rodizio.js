@@ -77,14 +77,24 @@ export const getNextCorretor = async (origem, campanha = '', salaExplicit = null
     `, salasPermitidas);
   }
 
-  // Fallback 2 de segurança: qualquer corretor disponível no plantão
+  // Fallback 2 de segurança:
+  // Se o fluxo veio vinculado a uma Sala específica (targetSala), NUNCA envia para outra sala (busca qualquer corretor ativo dessa mesma sala).
   if (corretores.length === 0) {
-    corretores = await db.query(`
-      SELECT id, nome, COALESCE(sala, 'sao_luis') as sala, COALESCE(peso_rodizio, 1) as peso
-      FROM usuarios 
-      WHERE ativo = 1 AND disponivel_rodizio = 1 AND pausado_rodizio = 0
-      ORDER BY peso DESC, nome ASC
-    `);
+    if (targetSala) {
+      corretores = await db.query(`
+        SELECT id, nome, COALESCE(sala, 'sao_luis') as sala, COALESCE(peso_rodizio, 1) as peso
+        FROM usuarios 
+        WHERE ativo = 1 AND role = 'corretor' AND COALESCE(sala, 'sao_luis') = ?
+        ORDER BY disponivel_rodizio DESC, pausado_rodizio ASC, nome ASC
+      `, [targetSala]);
+    } else {
+      corretores = await db.query(`
+        SELECT id, nome, COALESCE(sala, 'sao_luis') as sala, COALESCE(peso_rodizio, 1) as peso
+        FROM usuarios 
+        WHERE ativo = 1 AND disponivel_rodizio = 1 AND pausado_rodizio = 0
+        ORDER BY peso DESC, nome ASC
+      `);
+    }
   }
 
   if (corretores.length === 0) return null;

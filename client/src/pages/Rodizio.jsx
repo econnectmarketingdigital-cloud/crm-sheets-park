@@ -258,6 +258,53 @@ const Rodizio = () => {
                     ✕ Tirar Todos do Plantão
                   </button>
                 </div>
+
+                <div style={{
+                  borderTop: '1px solid var(--color-border)',
+                  paddingTop: '0.75rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                    🔗 Link Exclusivo do Make para esta Sala:
+                  </span>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      readOnly
+                      value={`https://crm-sheets-park.onrender.com/api/webhooks/meta/${sala.key}`}
+                      style={{
+                        flex: 1,
+                        fontSize: '0.72rem',
+                        padding: '5px 8px',
+                        borderRadius: '4px',
+                        border: '1px solid var(--color-border)',
+                        backgroundColor: 'rgba(0,0,0,0.2)',
+                        color: 'var(--color-text-secondary)'
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://crm-sheets-park.onrender.com/api/webhooks/meta/${sala.key}`);
+                        addToast(`Link do Make da ${sala.name} copiado!`, 'success');
+                      }}
+                      style={{
+                        padding: '5px 10px',
+                        borderRadius: '4px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        backgroundColor: sala.bg,
+                        color: sala.color,
+                        border: `1px solid ${sala.border}`,
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      Copiar Link
+                    </button>
+                  </div>
+                </div>
               </div>
             );
           })}

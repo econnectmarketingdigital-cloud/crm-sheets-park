@@ -407,17 +407,31 @@ router.post('/meta', async (req, res) => {
   }
 
   // 2. Se for payload formatado (do Make ou de um formulário simplificado)
-  handleIncomingLead({ ...body, origem: 'meta_ads' });
+  const salaParam = req.query.sala || body.sala || null;
+  handleIncomingLead({ ...body, sala: salaParam, origem: 'meta_ads' });
+});
+
+// Rota dedicada por Sala no Make: /api/webhooks/meta/:sala (ex: /api/webhooks/meta/salinas, /api/webhooks/meta/sao_luis, /api/webhooks/meta/santo_amaro)
+router.post('/meta/:sala', async (req, res) => {
+  res.status(200).json({ success: true });
+  handleIncomingLead({ ...req.body, sala: req.params.sala, origem: 'meta_ads' });
 });
 
 router.post('/google', async (req, res) => {
   res.status(200).json({ success: true });
-  handleIncomingLead({ ...req.body, origem: 'google_ads' });
+  const salaParam = req.query.sala || req.body.sala || null;
+  handleIncomingLead({ ...req.body, sala: salaParam, origem: 'google_ads' });
 });
 
 router.post('/make', async (req, res) => {
   res.status(200).json({ success: true });
-  handleIncomingLead({ ...req.body, origem: 'meta_ads' });
+  const salaParam = req.query.sala || req.body.sala || null;
+  handleIncomingLead({ ...req.body, sala: salaParam, origem: 'meta_ads' });
+});
+
+router.post('/make/:sala', async (req, res) => {
+  res.status(200).json({ success: true });
+  handleIncomingLead({ ...req.body, sala: req.params.sala, origem: 'meta_ads' });
 });
 
 export default router;
