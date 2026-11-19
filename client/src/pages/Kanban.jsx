@@ -6,7 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { FiClock, FiMessageCircle, FiPhone, FiUser, FiUsers, FiFilter } from 'react-icons/fi';
 import ModalFechamentoVenda from '../components/ModalFechamentoVenda';
-import { getWhatsAppUrl, getCampanhaBadge } from '../lib/utils';
+import { getWhatsAppUrl, getCampanhaBadge, SALAS, getSalaBadge } from '../lib/utils';
 
 const columns = [
   { id: 'novo', title: 'Novo' },
@@ -35,6 +35,7 @@ const Kanban = () => {
   const [leads, setLeads] = useState([]);
   const [corretores, setCorretores] = useState([]);
   const [selectedCorretorId, setSelectedCorretorId] = useState('');
+  const [selectedSala, setSelectedSala] = useState('');
   const [selectedProduto, setSelectedProduto] = useState('');
   const [loading, setLoading] = useState(true);
   const [showVendaModal, setShowVendaModal] = useState(false);
@@ -69,6 +70,8 @@ const Kanban = () => {
   const fetchLeads = fetchData;
 
   const filteredLeads = leads.filter(lead => {
+    const leadSala = lead.corretor_sala || lead.sala || 'sao_luis';
+    if (selectedSala && leadSala !== selectedSala) return false;
     if (selectedCorretorId && lead.corretor_id !== selectedCorretorId) return false;
     if (selectedProduto) {
       const text = `${lead.empreendimento_nome || ''} ${lead.campanha || ''}`.toLowerCase();
@@ -159,17 +162,50 @@ const Kanban = () => {
 
           {/* Botão rápido: Todos os Leads */}
           <button
-            onClick={() => setSelectedCorretorId('')}
+            onClick={() => { setSelectedCorretorId(''); setSelectedSala(''); }}
             className="btn btn-sm"
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
-              backgroundColor: selectedCorretorId === '' ? 'var(--color-primary, #00F5A0)' : 'var(--color-surface)',
-              color: selectedCorretorId === '' ? '#061912' : 'var(--color-text)',
+              backgroundColor: (selectedCorretorId === '' && selectedSala === '') ? 'var(--color-primary, #00F5A0)' : 'var(--color-surface)',
+              color: (selectedCorretorId === '' && selectedSala === '') ? '#061912' : 'var(--color-text)',
               fontWeight: 600, border: '1px solid var(--color-border)', borderRadius: '6px', padding: '6px 12px'
             }}
           >
-            <FiUsers /> Todos os Leads ({leads.length})
+            <FiUsers /> Todos os Leads ({filteredLeads.length})
           </button>
+
+          {/* Filtro por Sala (para Super Gestor) */}
+          {(isGestor || user?.role === 'gestor') && user?.sala === 'todas' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <select
+                value={selectedSala}
+                onChange={(e) => {
+                  setSelectedSala(e.target.value);
+                  setSelectedCorretorId('');
+                }}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  backgroundColor: selectedSala ? getSalaBadge(selectedSala).bg : 'var(--color-surface)',
+                  color: selectedSala ? getSalaBadge(selectedSala).color : 'var(--color-text)',
+                  border: `1px solid ${selectedSala ? getSalaBadge(selectedSala).color : 'var(--color-border)'}`,
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>-- Filtrar por Sala --</option>
+                {SALAS.map(s => {
+                  const countSala = leads.filter(l => (l.corretor_sala || l.sala || 'sao_luis') === s.key).length;
+                  return (
+                    <option key={s.key} value={s.key} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>
+                      {s.label} ({countSala})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
 
           {/* Dropdown por corretor (para Gestores e Admins) */}
           {(isGestor || user?.role === 'gestor') && corretores.length > 0 && (
@@ -184,11 +220,16 @@ const Kanban = () => {
                 }}
               >
                 <option value="">-- Filtrar por Corretor --</option>
-                {corretores.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome} {c.id === user?.id ? '(Você)' : ''}
-                  </option>
-                ))}
+                {corretores
+                  .filter(c => !selectedSala || (c.sala || 'sao_luis') === selectedSala)
+                  .map(c => {
+                    const sb = getSalaBadge(c.sala);
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {c.nome} ({sb.shortLabel}) {c.id === user?.id ? '(Você)' : ''}
+                      </option>
+                    );
+                  })}
               </select>
             </div>
           )}
@@ -318,9 +359,27 @@ const Kanban = () => {
                                     </p>
                                   ) : <span />}
                                   {lead.corretor_nome && (
-                                    <span style={{ fontSize: '0.7rem', color: 'var(--color-primary)', background: 'var(--color-primary-soft)', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}>
-                                      {lead.corretor_nome}
-                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      {(() => {
+                                        const sb = getSalaBadge(lead.corretor_sala || lead.sala);
+                                        return (
+                                          <span style={{
+                                            fontSize: '0.62rem',
+                                            color: sb.color,
+                                            background: sb.bg,
+                                            border: `1px solid ${sb.border}`,
+                                            padding: '1px 5px',
+                                            borderRadius: '4px',
+                                            fontWeight: 700
+                                          }}>
+                                            {sb.shortLabel}
+                                          </span>
+                                        );
+                                      })()}
+                                      <span style={{ fontSize: '0.7rem', color: 'var(--color-primary)', background: 'var(--color-primary-soft)', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}>
+                                        {lead.corretor_nome}
+                                      </span>
+                                    </div>
                                   )}
                                 </div>
                               
