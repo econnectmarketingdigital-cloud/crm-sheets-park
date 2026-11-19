@@ -89,7 +89,7 @@ export const getNextCorretor = async (origem, campanha = '', salaExplicit = null
       corretores = await db.query(`
         SELECT id, nome, COALESCE(sala, 'sao_luis') as sala, COALESCE(peso_rodizio, 1) as peso
         FROM usuarios 
-        WHERE ativo = 1 AND role = 'corretor' AND COALESCE(sala, 'sao_luis') = ?
+        WHERE ativo = 1 AND COALESCE(sala, 'sao_luis') = ?
         ORDER BY disponivel_rodizio DESC, pausado_rodizio ASC, nome ASC
       `, [targetSala]);
     } else {

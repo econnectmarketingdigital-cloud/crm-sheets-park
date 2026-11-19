@@ -75,7 +75,7 @@ router.get('/gestor', authenticateToken, requireRole('gestor'), async (req, res)
       leadsVolume = await db.query(`
         SELECT u.nome, u.avatar_url, COUNT(l.id) as total FROM usuarios u
         LEFT JOIN leads l ON l.corretor_id = u.id
-        WHERE u.role = 'corretor' AND COALESCE(u.sala, 'sao_luis') = ?
+        WHERE u.ativo = 1 AND COALESCE(u.sala, 'sao_luis') = ?
         GROUP BY u.id, u.nome, u.avatar_url
       `, [targetSala]);
 
@@ -104,7 +104,7 @@ router.get('/gestor', authenticateToken, requireRole('gestor'), async (req, res)
       leadsVolume = await db.query(`
         SELECT u.nome, u.avatar_url, COUNT(l.id) as total FROM usuarios u
         LEFT JOIN leads l ON l.corretor_id = u.id
-        WHERE u.role = 'corretor'
+        WHERE u.ativo = 1
         GROUP BY u.id, u.nome, u.avatar_url
       `);
 
