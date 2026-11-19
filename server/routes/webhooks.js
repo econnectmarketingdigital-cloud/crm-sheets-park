@@ -235,9 +235,9 @@ const handleIncomingLead = async (leadData) => {
     }
 
     // Se observacoes veio com "Anúncio:  |" em branco do Make, injeta o nome do anúncio identificado
-    let observacoesFinais = observacoes || null;
-    if (observacoesFinais && observacoesFinais.includes('Anúncio:  |') && rawAnuncio) {
-      observacoesFinais = observacoesFinais.replace('Anúncio:  |', `Anúncio: ${rawAnuncio} |`);
+    let observacoesFinais = observacoes ? String(observacoes).replace(/\s+/g, ' ').trim() : null;
+    if (observacoesFinais && observacoesFinais.includes('Anúncio: |') && rawAnuncio) {
+      observacoesFinais = observacoesFinais.replace('Anúncio: |', `Anúncio: ${rawAnuncio} |`);
     }
 
     const existing = await findExistingLead(telefone, email);

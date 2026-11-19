@@ -12,6 +12,28 @@ async function startServer() {
   const app = express();
 
   app.use(cors());
+
+  // Parser tolerante para webhooks do Make (aceita quebras de linha dentro de strings JSON)
+  app.use('/api/webhooks', express.text({ type: '*/*', limit: '50mb' }), (req, res, next) => {
+    if (typeof req.body === 'string' && req.body.trim()) {
+      try {
+        req.body = JSON.parse(req.body);
+      } catch (e) {
+        try {
+          // Substitui quebras de linha literais dentro de valores JSON por espaço
+          const sanitized = req.body.replace(/"((?:[^"\\]|\\.)*)"/gs, (match) =>
+            match.replace(/\r?\n/g, ' ')
+          );
+          req.body = JSON.parse(sanitized);
+        } catch (e2) {
+          console.error('[Webhook JSON Parse Fallback Error]:', e2.message);
+          req.body = {};
+        }
+      }
+    }
+    next();
+  });
+
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
