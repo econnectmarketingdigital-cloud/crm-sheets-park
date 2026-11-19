@@ -343,6 +343,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
+    // Salva backup automático na lixeira (leads_excluidos) antes de excluir
+    await db.execute(
+      'INSERT INTO leads_excluidos SELECT l.*, CURRENT_TIMESTAMP as deleted_at, ? as deleted_by FROM leads l WHERE l.id = ?',
+      [req.user.id, req.params.id]
+    ).catch(err => console.error('Backup lead_excluido error:', err));
+
     // Delete associated propostas, historico, reservas
     await db.execute('DELETE FROM propostas WHERE lead_id = ?', [req.params.id]);
     await db.execute('DELETE FROM lead_historico WHERE lead_id = ?', [req.params.id]);
