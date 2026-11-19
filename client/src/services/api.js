@@ -77,7 +77,7 @@ export default {
   },
   dashboard: {
     getDashboardCorretor: () => fetchWithAuth('/dashboard/corretor'),
-    getDashboardGestor: () => fetchWithAuth('/dashboard/gestor'),
+    getDashboardGestor: (sala) => fetchWithAuth(`/dashboard/gestor${sala ? `?sala=${sala}` : ''}`),
     getCorretorPerformance: (id) => fetchWithAuth(`/dashboard/corretor/${id}/performance`),
   },
   rodizio: {

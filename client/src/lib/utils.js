@@ -73,6 +73,17 @@ export const SALAS = [
 ];
 
 export function getSalaBadge(salaKey) {
+  if (salaKey === 'todas') {
+    return {
+      key: 'todas',
+      label: '🌐 Todas as Salas (Geral)',
+      shortLabel: '🌐 Geral',
+      name: 'Todas as Salas',
+      color: '#00F5A0',
+      bg: 'rgba(0, 245, 160, 0.14)',
+      border: 'rgba(0, 245, 160, 0.38)'
+    };
+  }
   const found = SALAS.find(s => s.key === (salaKey || 'sao_luis'));
   return found || SALAS[0];
 }

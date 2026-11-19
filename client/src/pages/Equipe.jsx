@@ -14,8 +14,15 @@ export default function Equipe() {
   const { user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const isSuperGestor = user?.sala === 'todas';
   
-  const [novoCorretor, setNovoCorretor] = useState({ nome: '', email: '', senha: '', role: 'corretor', sala: 'salinas' });
+  const [novoCorretor, setNovoCorretor] = useState({
+    nome: '',
+    email: '',
+    senha: '',
+    role: 'corretor',
+    sala: (user?.sala && user.sala !== 'todas') ? user.sala : 'salinas'
+  });
 
   useEffect(() => {
     fetchUsuarios();
@@ -145,14 +152,18 @@ export default function Equipe() {
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>Sala / Equipe</label>
               <select
-                value={novoCorretor.sala}
+                value={isSuperGestor ? novoCorretor.sala : (user?.sala || 'sao_luis')}
                 onChange={e => setNovoCorretor({...novoCorretor, sala: e.target.value})}
+                disabled={!isSuperGestor}
                 className="input"
                 style={{ width: '100%', fontWeight: 600 }}
               >
                 {SALAS.map(s => (
                   <option key={s.key} value={s.key}>{s.label}</option>
                 ))}
+                {isSuperGestor && novoCorretor.role === 'gestor' && (
+                  <option value="todas">🌐 Todas as Salas (Admin Geral)</option>
+                )}
               </select>
             </div>
             <div>
@@ -179,45 +190,47 @@ export default function Equipe() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <button
-          onClick={() => setSalaFilter('')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontWeight: 700,
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-            border: salaFilter === '' ? '1px solid #00F5A0' : '1px solid var(--color-border)',
-            backgroundColor: salaFilter === '' ? 'rgba(0, 245, 160, 0.15)' : 'var(--color-surface)',
-            color: salaFilter === '' ? '#00F5A0' : 'var(--color-text-secondary)'
-          }}
-        >
-          Todas as Salas ({usuarios.length})
-        </button>
-        {SALAS.map(s => {
-          const count = usuarios.filter(u => (u.sala || 'sao_luis') === s.key).length;
-          const active = salaFilter === s.key;
-          return (
-            <button
-              key={s.key}
-              onClick={() => setSalaFilter(s.key)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                border: active ? `1px solid ${s.color}` : '1px solid var(--color-border)',
-                backgroundColor: active ? s.bg : 'var(--color-surface)',
-                color: active ? s.color : 'var(--color-text-secondary)'
-              }}
-            >
-              {s.label} ({count})
-            </button>
-          );
-        })}
-      </div>
+      {isSuperGestor && (
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setSalaFilter('')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              border: salaFilter === '' ? '1px solid #00F5A0' : '1px solid var(--color-border)',
+              backgroundColor: salaFilter === '' ? 'rgba(0, 245, 160, 0.15)' : 'var(--color-surface)',
+              color: salaFilter === '' ? '#00F5A0' : 'var(--color-text-secondary)'
+            }}
+          >
+            Todas as Salas ({usuarios.length})
+          </button>
+          {SALAS.map(s => {
+            const count = usuarios.filter(u => (u.sala || 'sao_luis') === s.key).length;
+            const active = salaFilter === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setSalaFilter(s.key)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  border: active ? `1px solid ${s.color}` : '1px solid var(--color-border)',
+                  backgroundColor: active ? s.bg : 'var(--color-surface)',
+                  color: active ? s.color : 'var(--color-text-secondary)'
+                }}
+              >
+                {s.label} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
@@ -262,7 +275,7 @@ export default function Equipe() {
                     </div>
                   </td>
                   <td style={{ padding: '1rem 1.5rem' }}>
-                    {user?.role === 'gestor' ? (
+                    {(user?.role === 'gestor' && isSuperGestor) ? (
                       <select
                         value={u.sala || 'sao_luis'}
                         onChange={(e) => handleChangeSala(u.id, e.target.value)}
@@ -283,6 +296,11 @@ export default function Equipe() {
                             {s.label}
                           </option>
                         ))}
+                        {u.role === 'gestor' && (
+                          <option value="todas" style={{ backgroundColor: '#1a1a1a', color: '#00F5A0' }}>
+                            🌐 Todas as Salas (Geral)
+                          </option>
+                        )}
                       </select>
                     ) : (
                       <span style={{

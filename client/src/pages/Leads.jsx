@@ -247,7 +247,7 @@ export default function Leads() {
           <option value="google_ads">Google Ads</option>
           <option value="manual">Manual</option>
         </select>
-        {(isGestor || user?.role === 'gestor') && (
+        {(isGestor || user?.role === 'gestor') && user?.sala === 'todas' && (
           <select
             value={salaFilter}
             onChange={(e) => setSalaFilter(e.target.value)}

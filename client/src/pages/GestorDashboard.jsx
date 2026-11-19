@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { SALAS, getSalaBadge } from '../lib/utils';
 import { FiPieChart, FiUsers, FiFilter, FiTrendingUp } from 'react-icons/fi';
 import {
   AreaChart,
@@ -15,9 +17,12 @@ import {
 
 const GestorDashboard = () => {
   const { addToast } = useToast();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isSuperGestor = user?.sala === 'todas';
+  const [salaFilter, setSalaFilter] = useState('');
 
   // Process chart data dynamically with continuous progression
   const chartData = React.useMemo(() => {
@@ -56,7 +61,8 @@ const GestorDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api.dashboard.getDashboardGestor();
+        setLoading(true);
+        const res = await api.dashboard.getDashboardGestor(salaFilter);
         setData(res);
       } catch (err) {
         addToast(err.message || 'Erro ao carregar painel', 'error');
@@ -65,7 +71,7 @@ const GestorDashboard = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [salaFilter]);
 
   if (loading) return (
     <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
@@ -129,8 +135,65 @@ const GestorDashboard = () => {
           <h1 className="font-heading" style={{ fontSize: 'clamp(1.5rem, 6vw, 2.3rem)', margin: 0, fontWeight: 800, letterSpacing: '-0.5px' }}>
             Visão Geral <span style={{ color: 'transparent', backgroundImage: 'linear-gradient(90deg, #00F5A0, #0EA5E9)', WebkitBackgroundClip: 'text' }}>Gestão</span>
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>Acompanhamento de performance e VGV de loteamentos da equipe.</p>
+          <p style={{ color: 'var(--color-text-secondary)', margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>
+            {isSuperGestor
+              ? 'Acompanhamento de performance e VGV de todas as salas.'
+              : `Acompanhamento exclusivo da ${getSalaBadge(user?.sala).label}.`}
+          </p>
         </div>
+
+        {isSuperGestor ? (
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setSalaFilter('')}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                border: salaFilter === '' ? '1px solid #00F5A0' : '1px solid var(--color-border)',
+                backgroundColor: salaFilter === '' ? 'rgba(0, 245, 160, 0.15)' : 'var(--color-surface)',
+                color: salaFilter === '' ? '#00F5A0' : 'var(--color-text-secondary)'
+              }}
+            >
+              🌐 Todas as Salas
+            </button>
+            {SALAS.map(s => {
+              const active = salaFilter === s.key;
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => setSalaFilter(s.key)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    border: active ? `1px solid ${s.color}` : '1px solid var(--color-border)',
+                    backgroundColor: active ? s.bg : 'var(--color-surface)',
+                    color: active ? s.color : 'var(--color-text-secondary)'
+                  }}
+                >
+                  {s.shortLabel}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <span style={{
+            padding: '8px 14px',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '0.85rem',
+            backgroundColor: getSalaBadge(user?.sala).bg,
+            color: getSalaBadge(user?.sala).color,
+            border: `1px solid ${getSalaBadge(user?.sala).border}`
+          }}>
+            {getSalaBadge(user?.sala).label}
+          </span>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1rem' }}>

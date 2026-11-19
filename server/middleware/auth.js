@@ -29,7 +29,7 @@ export const requireRole = (role) => {
 
 export const generateToken = (user) => {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role, nome: user.nome },
+    { id: user.id, email: user.email, role: user.role, nome: user.nome, sala: user.sala || 'sao_luis' },
     JWT_SECRET,
     { expiresIn: '24h' }
   );

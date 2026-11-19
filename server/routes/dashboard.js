@@ -21,13 +21,17 @@ router.get('/corretor', authenticateToken, async (req, res) => {
     
     const recentLeads = await db.query('SELECT id, nome, etapa, created_at, reengajado, reengajado_em FROM leads WHERE corretor_id = ? ORDER BY COALESCE(reengajado_em, created_at) DESC LIMIT 5', [corretor_id]);
 
+    const currentUser = await db.queryOne("SELECT COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [corretor_id]);
+    const corretorSala = (currentUser?.sala && currentUser.sala !== 'todas') ? currentUser.sala : 'sao_luis';
+
     const allVgv = await db.query(`
       SELECT u.nome, u.avatar_url, p.corretor_id, SUM(p.valor_venda) as vgv FROM propostas p
       JOIN usuarios u ON p.corretor_id = u.id
       WHERE p.status = 'aprovada'
+      AND COALESCE(u.sala, 'sao_luis') = ?
       AND EXTRACT(MONTH FROM p.data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE)
       GROUP BY p.corretor_id, u.nome, u.avatar_url ORDER BY vgv DESC
-    `);
+    `, [corretorSala]);
     
     let rank = allVgv.findIndex(r => r.corretor_id === corretor_id) + 1;
     if (rank === 0) rank = allVgv.length + 1;
@@ -41,27 +45,73 @@ router.get('/corretor', authenticateToken, async (req, res) => {
 router.get('/gestor', authenticateToken, requireRole('gestor'), async (req, res) => {
   const db = getDb();
   try {
-    const allVgv = await db.query(`
-      SELECT u.nome, u.avatar_url, p.corretor_id, SUM(p.valor_venda) as vgv FROM propostas p
-      JOIN usuarios u ON p.corretor_id = u.id
-      WHERE p.status = 'aprovada'
-      AND EXTRACT(MONTH FROM p.data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE)
-      GROUP BY p.corretor_id, u.nome, u.avatar_url ORDER BY vgv DESC
-    `);
+    const currentUser = await db.queryOne("SELECT COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [req.user.id]);
+    const userSala = currentUser?.sala || 'sao_luis';
+    const targetSala = userSala !== 'todas' ? userSala : (req.query.sala || null);
 
-    const funnelOrigem = await db.query(`
-      SELECT origem, etapa, COUNT(*) as count FROM leads GROUP BY origem, etapa
-    `);
+    let allVgv;
+    let funnelOrigem;
+    let leadsVolume;
+    let chartDataQuery;
 
-    const leadsVolume = await db.query(`
-      SELECT u.nome, u.avatar_url, COUNT(l.id) as total FROM usuarios u
-      LEFT JOIN leads l ON l.corretor_id = u.id
-      WHERE u.role = 'corretor'
-      GROUP BY u.id, u.nome, u.avatar_url
-    `);
+    if (targetSala) {
+      allVgv = await db.query(`
+        SELECT u.nome, u.avatar_url, p.corretor_id, SUM(p.valor_venda) as vgv FROM propostas p
+        JOIN usuarios u ON p.corretor_id = u.id
+        WHERE p.status = 'aprovada'
+        AND COALESCE(u.sala, 'sao_luis') = ?
+        AND EXTRACT(MONTH FROM p.data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE)
+        GROUP BY p.corretor_id, u.nome, u.avatar_url ORDER BY vgv DESC
+      `, [targetSala]);
 
-    const chartDataQuery = await db.query("SELECT EXTRACT(DAY FROM data_fechamento) as dia, SUM(valor_venda) as vgv FROM propostas WHERE status = 'aprovada' AND EXTRACT(MONTH FROM data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE) GROUP BY dia ORDER BY dia ASC");
-    res.json({ success: true, data: { rankings: allVgv, funnel: funnelOrigem, volume: leadsVolume, chart: chartDataQuery } });
+      funnelOrigem = await db.query(`
+        SELECT l.origem, l.etapa, COUNT(*) as count
+        FROM leads l
+        LEFT JOIN usuarios u ON l.corretor_id = u.id
+        WHERE COALESCE(u.sala, l.sala, 'sao_luis') = ? OR l.sala = ?
+        GROUP BY l.origem, l.etapa
+      `, [targetSala, targetSala]);
+
+      leadsVolume = await db.query(`
+        SELECT u.nome, u.avatar_url, COUNT(l.id) as total FROM usuarios u
+        LEFT JOIN leads l ON l.corretor_id = u.id
+        WHERE u.role = 'corretor' AND COALESCE(u.sala, 'sao_luis') = ?
+        GROUP BY u.id, u.nome, u.avatar_url
+      `, [targetSala]);
+
+      chartDataQuery = await db.query(`
+        SELECT EXTRACT(DAY FROM p.data_fechamento) as dia, SUM(p.valor_venda) as vgv
+        FROM propostas p
+        JOIN usuarios u ON p.corretor_id = u.id
+        WHERE p.status = 'aprovada'
+        AND COALESCE(u.sala, 'sao_luis') = ?
+        AND EXTRACT(MONTH FROM p.data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE)
+        GROUP BY dia ORDER BY dia ASC
+      `, [targetSala]);
+    } else {
+      allVgv = await db.query(`
+        SELECT u.nome, u.avatar_url, p.corretor_id, SUM(p.valor_venda) as vgv FROM propostas p
+        JOIN usuarios u ON p.corretor_id = u.id
+        WHERE p.status = 'aprovada'
+        AND EXTRACT(MONTH FROM p.data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE)
+        GROUP BY p.corretor_id, u.nome, u.avatar_url ORDER BY vgv DESC
+      `);
+
+      funnelOrigem = await db.query(`
+        SELECT origem, etapa, COUNT(*) as count FROM leads GROUP BY origem, etapa
+      `);
+
+      leadsVolume = await db.query(`
+        SELECT u.nome, u.avatar_url, COUNT(l.id) as total FROM usuarios u
+        LEFT JOIN leads l ON l.corretor_id = u.id
+        WHERE u.role = 'corretor'
+        GROUP BY u.id, u.nome, u.avatar_url
+      `);
+
+      chartDataQuery = await db.query("SELECT EXTRACT(DAY FROM data_fechamento) as dia, SUM(valor_venda) as vgv FROM propostas WHERE status = 'aprovada' AND EXTRACT(MONTH FROM data_fechamento) = EXTRACT(MONTH FROM CURRENT_DATE) GROUP BY dia ORDER BY dia ASC");
+    }
+
+    res.json({ success: true, data: { rankings: allVgv, funnel: funnelOrigem, volume: leadsVolume, chart: chartDataQuery, sala: targetSala || 'todas' } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

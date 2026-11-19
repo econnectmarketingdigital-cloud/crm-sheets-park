@@ -20,14 +20,24 @@ router.put('/config', authenticateToken, requireRole('gestor'), async (req, res)
 
 router.get('/corretores', authenticateToken, async (req, res) => {
   const db = getDb();
-  const corretores = await db.query(`
+  const currentUser = await db.queryOne("SELECT COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [req.user.id]);
+  const userSala = currentUser?.sala || 'sao_luis';
+
+  let query = `
     SELECT id, nome, email, role, COALESCE(sala, 'sao_luis') as sala, disponivel_rodizio, pausado_rodizio, ativo,
            COALESCE(peso_salinas, 0) as peso_salinas,
            COALESCE(peso_santo_amaro, 1) as peso_santo_amaro
     FROM usuarios
     WHERE ativo = 1
-    ORDER BY nome ASC
-  `);
+  `;
+  const params = [];
+  if (userSala !== 'todas') {
+    query += " AND COALESCE(sala, 'sao_luis') = ?";
+    params.push(userSala);
+  }
+  query += " ORDER BY nome ASC";
+
+  const corretores = await db.query(query, params);
   res.json({ success: true, data: corretores });
 });
 
@@ -40,7 +50,7 @@ router.put('/corretor/:id/pesos', authenticateToken, requireRole('gestor'), asyn
   if (peso_santo_amaro !== undefined) {
     await db.execute("UPDATE usuarios SET peso_santo_amaro = ? WHERE id = ?", [parseInt(peso_santo_amaro, 10) || 0, req.params.id]);
   }
-  if (sala && ['sao_luis', 'salinas', 'santo_amaro'].includes(sala)) {
+  if (sala && ['sao_luis', 'salinas', 'santo_amaro', 'todas'].includes(sala)) {
     await db.execute("UPDATE usuarios SET sala = ? WHERE id = ?", [sala, req.params.id]);
   }
   res.json({ success: true, data: 'Divisão de praças/salas atualizada' });
@@ -51,6 +61,10 @@ router.put('/sala/:sala/plantao', authenticateToken, requireRole('gestor'), asyn
   const { sala } = req.params;
   if (!['sao_luis', 'salinas', 'santo_amaro'].includes(sala)) {
     return res.status(400).json({ success: false, error: 'Sala inválida' });
+  }
+  const currentUser = await db.queryOne("SELECT COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [req.user.id]);
+  if (currentUser?.sala !== 'todas' && currentUser?.sala !== sala) {
+    return res.status(403).json({ success: false, error: 'Você só pode gerenciar o rodízio da sua própria sala.' });
   }
   const { disponivel, ativa } = req.body;
   try {

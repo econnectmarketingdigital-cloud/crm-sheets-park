@@ -7,8 +7,19 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   const db = getDb();
   try {
-    let query = "SELECT id, nome, email, telefone, role, COALESCE(sala, 'sao_luis') as sala, ativo, avatar_url, avatar_cor, disponivel_rodizio, pausado_rodizio, COALESCE(peso_salinas, 0) as peso_salinas, COALESCE(peso_santo_amaro, 1) as peso_santo_amaro FROM usuarios ORDER BY nome ASC";
-    const usuarios = await db.query(query);
+    const currentUser = await db.queryOne("SELECT role, COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [req.user.id]);
+    const userSala = currentUser?.sala || 'sao_luis';
+
+    let query = "SELECT id, nome, email, telefone, role, COALESCE(sala, 'sao_luis') as sala, ativo, avatar_url, avatar_cor, disponivel_rodizio, pausado_rodizio, COALESCE(peso_salinas, 0) as peso_salinas, COALESCE(peso_santo_amaro, 1) as peso_santo_amaro FROM usuarios";
+    const params = [];
+
+    if (userSala !== 'todas') {
+      query += " WHERE COALESCE(sala, 'sao_luis') = ?";
+      params.push(userSala);
+    }
+
+    query += " ORDER BY nome ASC";
+    const usuarios = await db.query(query, params);
     res.json({ success: true, data: usuarios });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -29,10 +40,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.put('/:id/sala', authenticateToken, requireRole('gestor'), async (req, res) => {
   const db = getDb();
   const { sala } = req.body;
-  if (!['sao_luis', 'salinas', 'santo_amaro'].includes(sala)) {
+  if (!['sao_luis', 'salinas', 'santo_amaro', 'todas'].includes(sala)) {
     return res.status(400).json({ success: false, error: 'Sala inválida' });
   }
   try {
+    const currentUser = await db.queryOne("SELECT COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [req.user.id]);
+    if (currentUser?.sala !== 'todas' && sala !== currentUser?.sala) {
+      return res.status(403).json({ success: false, error: 'Você só pode gerenciar corretores da sua própria sala.' });
+    }
     await db.execute('UPDATE usuarios SET sala = ? WHERE id = ?', [sala, req.params.id]);
     res.json({ success: true, data: 'Sala atualizada' });
   } catch (error) {

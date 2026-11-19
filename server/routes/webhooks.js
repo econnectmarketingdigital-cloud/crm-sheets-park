@@ -287,11 +287,17 @@ const handleIncomingLead = async (leadData) => {
 
     const corretorId = await getNextCorretor(origem, finalCampanha, leadData.sala) || null;
     const id = uuidv4();
+    let leadSala = leadData.sala ? String(leadData.sala).toLowerCase() : null;
+    if (!leadSala && corretorId) {
+      const cRow = await db.queryOne("SELECT COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [corretorId]);
+      leadSala = (cRow?.sala && cRow.sala !== 'todas') ? cRow.sala : 'sao_luis';
+    }
+    if (!leadSala) leadSala = 'sao_luis';
     
     await db.execute(`
-      INSERT INTO leads (id, nome, telefone, email, origem, campanha, anuncio, faixa_renda, observacoes, corretor_id, empreendimento_interesse_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [id, nome, telefone, email, origem, finalCampanha, rawAnuncio, rendaFinal, observacoesFinais, corretorId, empreendimentoId]);
+      INSERT INTO leads (id, nome, telefone, email, origem, campanha, anuncio, faixa_renda, observacoes, corretor_id, empreendimento_interesse_id, sala)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [id, nome, telefone, email, origem, finalCampanha, rawAnuncio, rendaFinal, observacoesFinais, corretorId, empreendimentoId, leadSala]);
     
     await db.execute(`INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) VALUES (?, ?, ?, 'sistema', ?)`, [uuidv4(), id, corretorId, `Lead via Webhook ${origem} (Campanha: ${finalCampanha})`]);
     

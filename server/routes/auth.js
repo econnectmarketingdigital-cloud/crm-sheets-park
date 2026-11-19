@@ -25,7 +25,7 @@ router.post('/login', async (req, res) => {
     if (!validPassword) return res.status(401).json({ success: false, error: 'Senha incorreta' });
 
     const token = generateToken(user);
-    res.json({ success: true, data: { token, user: { id: user.id, email: user.email, nome: user.nome, role: user.role, avatar_url: user.avatar_url, wallpaper_url: user.wallpaper_url, wallpaper_position: user.wallpaper_position } } });
+    res.json({ success: true, data: { token, user: { id: user.id, email: user.email, nome: user.nome, role: user.role, sala: user.sala || 'sao_luis', avatar_url: user.avatar_url, wallpaper_url: user.wallpaper_url, wallpaper_position: user.wallpaper_position } } });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -41,7 +41,7 @@ router.post('/google', async (req, res) => {
   }
 
   try {
-    const user = await db.queryOne('SELECT * FROM usuarios WHERE email = ? AND ativo = 1', [email.trim().toLowerCase()]);
+    const user = await db.queryOne('SELECT * FROM usuarios WHERE LOWER(email) = LOWER(?) AND ativo = 1', [email.trim().toLowerCase()]);
     
     if (!user) {
       return res.status(403).json({ 
@@ -60,6 +60,7 @@ router.post('/google', async (req, res) => {
           email: user.email, 
           nome: user.nome, 
           role: user.role,
+          sala: user.sala || 'sao_luis',
           avatar_url: user.avatar_url,
           wallpaper_url: user.wallpaper_url,
           wallpaper_position: user.wallpaper_position
@@ -77,13 +78,17 @@ router.post('/register', authenticateToken, requireRole('gestor'), async (req, r
   if (!nome || !email || !senha) return res.status(400).json({ success: false, error: 'Campos obrigatórios ausentes' });
 
   try {
-    const existing = await db.queryOne('SELECT id FROM usuarios WHERE email = ?', [email]);
+    const existing = await db.queryOne('SELECT id FROM usuarios WHERE LOWER(email) = LOWER(?)', [email.trim()]);
     if (existing) return res.status(400).json({ success: false, error: 'Email já cadastrado' });
+
+    const currentUser = await db.queryOne("SELECT COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [req.user.id]);
+    const creatorSala = currentUser?.sala || 'sao_luis';
 
     const id = uuidv4();
     const hash = bcrypt.hashSync(senha, 10);
     const userRole = role || 'corretor';
-    const userSala = ['sao_luis', 'salinas', 'santo_amaro'].includes(sala) ? sala : 'sao_luis';
+    const allowedSalas = creatorSala === 'todas' ? ['sao_luis', 'salinas', 'santo_amaro', 'todas'] : [creatorSala];
+    const userSala = allowedSalas.includes(sala) ? sala : (creatorSala === 'todas' ? 'sao_luis' : creatorSala);
 
     await db.execute(`
       INSERT INTO usuarios (id, nome, email, telefone, senha_hash, role, sala, disponivel_rodizio, peso_salinas, peso_santo_amaro)

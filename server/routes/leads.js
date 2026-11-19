@@ -13,8 +13,12 @@ router.get('/', authenticateToken, async (req, res) => {
   const db = getDb();
   try {
     const { etapa, origem, corretor_id, limit = 1000, offset = 0 } = req.query;
+    const currentUser = await db.queryOne("SELECT role, COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [req.user.id]);
+    const userSala = currentUser?.sala || 'sao_luis';
+
     let query = `
-      SELECT l.*, e.nome as empreendimento_nome, u.nome as corretor_nome, COALESCE(u.sala, 'sao_luis') as corretor_sala
+      SELECT l.*, e.nome as empreendimento_nome, u.nome as corretor_nome,
+             CASE WHEN u.sala IS NOT NULL AND u.sala != 'todas' THEN u.sala ELSE COALESCE(l.sala, 'sao_luis') END as corretor_sala
       FROM leads l
       LEFT JOIN empreendimentos e ON l.empreendimento_interesse_id = e.id
       LEFT JOIN usuarios u ON l.corretor_id = u.id
@@ -25,9 +29,15 @@ router.get('/', authenticateToken, async (req, res) => {
     if (req.user.role === 'corretor') {
       query += ' AND l.corretor_id = ?';
       params.push(req.user.id);
-    } else if (corretor_id) {
-      query += ' AND l.corretor_id = ?';
-      params.push(corretor_id);
+    } else {
+      if (userSala !== 'todas') {
+        query += " AND (COALESCE(u.sala, l.sala, 'sao_luis') = ? OR l.sala = ?)";
+        params.push(userSala, userSala);
+      }
+      if (corretor_id) {
+        query += ' AND l.corretor_id = ?';
+        params.push(corretor_id);
+      }
     }
 
     if (etapa) { query += ' AND l.etapa = ?'; params.push(etapa); }
@@ -63,17 +73,20 @@ router.post('/', authenticateToken, async (req, res) => {
     const id = uuidv4();
     let corretorId = null;
 
+    const currentUser = await db.queryOne("SELECT COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [req.user.id]);
+    const userSala = (currentUser?.sala && currentUser.sala !== 'todas') ? currentUser.sala : 'sao_luis';
+
     if (origem === 'manual') {
       corretorId = req.user.id;
     } else {
-      corretorId = await getNextCorretor(origem, campanha);
+      corretorId = await getNextCorretor(origem, campanha, userSala);
     }
 
     const cleanEmpId = empreendimento_interesse_id && empreendimento_interesse_id.trim() !== '' ? empreendimento_interesse_id : null;
 
     await db.execute(`
-      INSERT INTO leads (id, nome, telefone, email, origem, campanha, anuncio, corretor_id, empreendimento_interesse_id, observacoes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO leads (id, nome, telefone, email, origem, campanha, anuncio, corretor_id, empreendimento_interesse_id, observacoes, sala)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       id, 
       nome.trim(), 
@@ -84,7 +97,8 @@ router.post('/', authenticateToken, async (req, res) => {
       anuncio || null, 
       corretorId, 
       cleanEmpId, 
-      observacoes || null
+      observacoes || null,
+      userSala
     ]);
 
     await db.execute(
@@ -106,7 +120,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
   const db = getDb();
   try {
     const lead = await db.queryOne(`
-      SELECT l.*, e.nome as empreendimento_nome, u.nome as corretor_nome 
+      SELECT l.*, e.nome as empreendimento_nome, u.nome as corretor_nome, COALESCE(u.sala, l.sala, 'sao_luis') as lead_sala
       FROM leads l 
       LEFT JOIN empreendimentos e ON l.empreendimento_interesse_id = e.id 
       LEFT JOIN usuarios u ON l.corretor_id = u.id 
@@ -117,6 +131,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
     
     if (req.user.role === 'corretor' && lead.corretor_id !== req.user.id) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+    if (req.user.role === 'gestor') {
+      const currentUser = await db.queryOne("SELECT COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [req.user.id]);
+      if (currentUser && currentUser.sala !== 'todas' && lead.lead_sala !== currentUser.sala && lead.sala !== currentUser.sala) {
+        return res.status(403).json({ success: false, error: 'Acesso negado a contatos de outra sala.' });
+      }
     }
     
     res.json({ success: true, data: lead });
@@ -134,9 +154,13 @@ router.post('/bulk-transfer', authenticateToken, async (req, res) => {
     }
 
     let nomeNovoCorretor = 'Nenhum Corretor';
+    let salaNovoCorretor = null;
     if (corretor_id) {
-      const novoCorretor = await db.queryOne('SELECT nome FROM usuarios WHERE id = ?', [corretor_id]);
-      if (novoCorretor) nomeNovoCorretor = novoCorretor.nome;
+      const novoCorretor = await db.queryOne("SELECT nome, COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [corretor_id]);
+      if (novoCorretor) {
+        nomeNovoCorretor = novoCorretor.nome;
+        salaNovoCorretor = novoCorretor.sala !== 'todas' ? novoCorretor.sala : null;
+      }
     }
 
     let transferredCount = 0;
@@ -146,8 +170,8 @@ router.post('/bulk-transfer', authenticateToken, async (req, res) => {
       if (req.user.role === 'corretor' && lead.corretor_id !== req.user.id) continue;
 
       await db.execute(
-        'UPDATE leads SET corretor_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [corretor_id || null, leadId]
+        'UPDATE leads SET corretor_id = ?, sala = COALESCE(?, sala), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [corretor_id || null, salaNovoCorretor, leadId]
       );
 
       await db.execute(
@@ -183,12 +207,16 @@ router.put('/:id/corretor', authenticateToken, async (req, res) => {
     if (req.user.role === 'corretor' && lead.corretor_id !== req.user.id) return res.status(403).json({ success: false, error: 'Acesso negado' });
 
     let nomeNovoCorretor = 'Nenhum Corretor';
+    let salaNovoCorretor = null;
     if (corretor_id) {
-      const novoCorretor = await db.queryOne('SELECT nome FROM usuarios WHERE id = ?', [corretor_id]);
-      if (novoCorretor) nomeNovoCorretor = novoCorretor.nome;
+      const novoCorretor = await db.queryOne("SELECT nome, COALESCE(sala, 'sao_luis') as sala FROM usuarios WHERE id = ?", [corretor_id]);
+      if (novoCorretor) {
+        nomeNovoCorretor = novoCorretor.nome;
+        salaNovoCorretor = novoCorretor.sala !== 'todas' ? novoCorretor.sala : null;
+      }
     }
 
-    await db.execute('UPDATE leads SET corretor_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [corretor_id || null, req.params.id]);
+    await db.execute('UPDATE leads SET corretor_id = ?, sala = COALESCE(?, sala), updated_at = CURRENT_TIMESTAMP WHERE id = ?', [corretor_id || null, salaNovoCorretor, req.params.id]);
     
     await db.execute(`
       INSERT INTO lead_historico (id, lead_id, corretor_id, tipo, descricao) 

@@ -50,7 +50,12 @@ export const getNextCorretor = async (origem, campanha = '', salaExplicit = null
     ? [targetSala]
     : (salasAtivas.length > 0 ? salasAtivas : ['sao_luis', 'salinas', 'santo_amaro']);
 
-  const placeholders = salasPermitidas.map(() => '?').join(', ');
+  // Se sao_luis estiver nas salas permitidas, inclui tambem usuarios com sala='todas' que participam do rodizio de Sao Luis
+  const salasBusca = salasPermitidas.includes('sao_luis') && !targetSala
+    ? [...salasPermitidas, 'todas']
+    : (targetSala === 'sao_luis' ? ['sao_luis', 'todas'] : salasPermitidas);
+
+  const placeholders = salasBusca.map(() => '?').join(', ');
 
   // Busca corretores ativos, disponíveis, não pausados, pertencentes às salas ativas e com peso > 0 no produto
   let corretores = await db.query(`
@@ -62,7 +67,7 @@ export const getNextCorretor = async (origem, campanha = '', salaExplicit = null
       AND COALESCE(sala, 'sao_luis') IN (${placeholders})
       AND COALESCE(${pesoCol}, 0) > 0
     ORDER BY peso DESC, nome ASC
-  `, salasPermitidas);
+  `, salasBusca);
 
   // Fallback 1: Corretores disponíveis nas salas permitidas mesmo que não tenham peso específico daquele produto configurado
   if (corretores.length === 0) {
@@ -74,7 +79,7 @@ export const getNextCorretor = async (origem, campanha = '', salaExplicit = null
         AND pausado_rodizio = 0
         AND COALESCE(sala, 'sao_luis') IN (${placeholders})
       ORDER BY peso DESC, nome ASC
-    `, salasPermitidas);
+    `, salasBusca);
   }
 
   // Fallback 2 de segurança:

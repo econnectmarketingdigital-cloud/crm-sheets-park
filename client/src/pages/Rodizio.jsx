@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { SALAS, getSalaBadge } from '../lib/utils';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const Rodizio = () => {
+  const { user } = useAuth();
+  const isSuperGestor = user?.sala === 'todas';
+  const visibleSalas = isSuperGestor ? SALAS : SALAS.filter(s => s.key === (user?.sala || 'sao_luis'));
   const [config, setConfig] = useState({
     rodizio_ativo: 1,
     sla_redistribuicao_minutos: 15,
@@ -165,7 +169,7 @@ const Rodizio = () => {
       <section style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1rem' }}>Controle Rápido por Sala / Equipe</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-          {SALAS.map(sala => {
+          {visibleSalas.map(sala => {
             const configKey = `sala_${sala.key}_ativa`;
             const isSalaAtiva = config?.[configKey] !== 0;
             const corretoresDaSala = corretores.filter(c => (c.sala || 'sao_luis') === sala.key);
@@ -363,45 +367,47 @@ const Rodizio = () => {
       <section className="card" style={{ padding: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
           <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Corretores por Sala & Filas de Produto</h2>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setSalaFilter('')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                fontWeight: 700,
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                border: salaFilter === '' ? '1px solid #00F5A0' : '1px solid var(--color-border)',
-                backgroundColor: salaFilter === '' ? 'rgba(0, 245, 160, 0.15)' : 'transparent',
-                color: salaFilter === '' ? '#00F5A0' : 'var(--color-text-secondary)'
-              }}
-            >
-              Todas as Salas ({corretores.length})
-            </button>
-            {SALAS.map(s => {
-              const count = corretores.filter(c => (c.sala || 'sao_luis') === s.key).length;
-              const active = salaFilter === s.key;
-              return (
-                <button
-                  key={s.key}
-                  onClick={() => setSalaFilter(s.key)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '6px',
-                    fontWeight: 700,
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                    border: active ? `1px solid ${s.color}` : '1px solid var(--color-border)',
-                    backgroundColor: active ? s.bg : 'transparent',
-                    color: active ? s.color : 'var(--color-text-secondary)'
-                  }}
-                >
-                  {s.shortLabel} ({count})
-                </button>
-              );
-            })}
-          </div>
+          {isSuperGestor && (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setSalaFilter('')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  border: salaFilter === '' ? '1px solid #00F5A0' : '1px solid var(--color-border)',
+                  backgroundColor: salaFilter === '' ? 'rgba(0, 245, 160, 0.15)' : 'transparent',
+                  color: salaFilter === '' ? '#00F5A0' : 'var(--color-text-secondary)'
+                }}
+              >
+                Todas as Salas ({corretores.length})
+              </button>
+              {SALAS.map(s => {
+                const count = corretores.filter(c => (c.sala || 'sao_luis') === s.key).length;
+                const active = salaFilter === s.key;
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => setSalaFilter(s.key)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      fontWeight: 700,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      border: active ? `1px solid ${s.color}` : '1px solid var(--color-border)',
+                      backgroundColor: active ? s.bg : 'transparent',
+                      color: active ? s.color : 'var(--color-text-secondary)'
+                    }}
+                  >
+                    {s.shortLabel} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
         
         <div style={{ overflowX: 'auto' }}>
@@ -434,27 +440,41 @@ const Rodizio = () => {
                       <div className="text-secondary" style={{ fontSize: '0.85rem' }}>{corretor.email}</div>
                     </td>
                     <td style={{ padding: '1rem' }}>
-                      <select
-                        className="input"
-                        value={corretor.sala || 'sao_luis'}
-                        onChange={(e) => handleSalaChange(corretor.id, e.target.value)}
-                        style={{
-                          padding: '6px 10px',
-                          borderRadius: '6px',
-                          fontSize: '0.82rem',
-                          fontWeight: 700,
-                          border: `1px solid ${salaBadge.border}`,
-                          backgroundColor: salaBadge.bg,
-                          color: salaBadge.color,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {SALAS.map(s => (
-                          <option key={s.key} value={s.key} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
+                      {isSuperGestor ? (
+                        <select
+                          className="input"
+                          value={corretor.sala || 'sao_luis'}
+                          onChange={(e) => handleSalaChange(corretor.id, e.target.value)}
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            border: `1px solid ${salaBadge.border}`,
+                            backgroundColor: salaBadge.bg,
+                            color: salaBadge.color,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {SALAS.map(s => (
+                            <option key={s.key} value={s.key} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>
+                              {s.label}
+                            </option>
+                          ))}
+                          {corretor.role === 'gestor' && (
+                            <option value="todas" style={{ backgroundColor: '#1a1a1a', color: '#00F5A0' }}>
+                              🌐 Todas as Salas (Geral)
+                            </option>
+                          )}
+                        </select>
+                      ) : (
+                        <span style={{
+                          padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700,
+                          backgroundColor: salaBadge.bg, color: salaBadge.color, border: `1px solid ${salaBadge.border}`
+                        }}>
+                          {salaBadge.label}
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: '1rem' }}>
                       <select
